@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /* Text colors */
+  --color-ink: #121212;
+  --color-ink-strong: #111111;
+  --color-text-secondary: #8a8a8a;
+  --color-text-tertiary: #b0b0b0;
+  --color-text-quaternary: #c6c6c6;
+  --color-text-body-1: #4a4a4a;
+  --color-text-body-2: #666666;
+  --color-text-body-3: #333333;
+  --color-text-table-header: #8a8a8a;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Surfaces & borders */
+  --color-bg: #ffffff;
+  --color-surface: #f7f7f7;
+  --color-surface-alt: #fafafa;
+  --color-surface-track: #f2f2f2;
+  --color-border: #ececec;
+  --color-border-input: #dedede;
+  --color-border-row: #f0f0f0;
+  --color-border-row-alt: #f4f4f4;
+  --color-border-dashed: #d5d5d5;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Status badge palette */
+  --color-badge-neutral-bg: #f2f2f2;
+  --color-badge-neutral-fg: #666666;
+  --color-badge-progress-bg: #eef4ff;
+  --color-badge-progress-fg: #2f5fdb;
+  --color-badge-success-bg: #eefaf0;
+  --color-badge-success-fg: #1e8a4c;
+  --color-badge-warning-bg: #fff4e8;
+  --color-badge-warning-fg: #c47a1a;
+  --color-badge-danger-bg: #fdecec;
+  --color-badge-danger-fg: #c0392b;
+  --color-badge-done-bg: #f0f0f0;
+  --color-badge-done-fg: #444444;
+
+  /* Placeholder pattern */
+  --color-placeholder-a: #f2f2f2;
+  --color-placeholder-b: #e8e8e8;
+
+  /* Backdrop */
+  --color-backdrop: rgb(17 17 17 / 45%);
+
+  /* Radius scale (handoff: 6/8/10/12/14/16-20/pill/full) */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-pill: 20px;
+
+  /* Shadow */
+  --shadow-popover: 0 12px 32px rgb(0 0 0 / 12%);
+
+  /* Font */
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Image placeholder stripe pattern (no reusable token equivalent — see components/CLAUDE.md) */
+.placeholder-pattern {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--color-placeholder-a),
+    var(--color-placeholder-a) 10px,
+    var(--color-placeholder-b) 10px,
+    var(--color-placeholder-b) 20px
+  );
+}
+
+.placeholder-pattern-sm {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--color-placeholder-a),
+    var(--color-placeholder-a) 8px,
+    var(--color-placeholder-b) 8px,
+    var(--color-placeholder-b) 16px
+  );
 }
