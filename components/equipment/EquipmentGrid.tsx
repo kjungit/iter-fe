@@ -1,9 +1,10 @@
 import { EquipmentCard } from "@/components/equipment/EquipmentCard";
+import type { EquipmentSummary } from "@/lib/api/equipment";
 import { isEquipmentRented } from "@/lib/mock-data";
-import type { Equipment, Rental } from "@/lib/types";
+import type { Rental } from "@/lib/types";
 
 interface EquipmentGridProps {
-  equipment: Equipment[];
+  equipment: EquipmentSummary[];
   rentals: Rental[];
 }
 

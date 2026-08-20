@@ -4,20 +4,10 @@ import type {
   AdminMember,
   Dispute,
   Equipment,
-  EquipmentCategory,
   Rental,
   Report,
   User,
 } from "@/lib/types";
-
-export const EQUIPMENT_CATEGORIES: EquipmentCategory[] = [
-  "카메라",
-  "노트북",
-  "VR기기",
-  "프로젝터",
-  "게임기",
-  "렌즈",
-];
 
 /**
  * 대여/신고/관리자 회원 목데이터가 참조하는 이름 시드일 뿐, 더 이상 "로그인된 사용자"를

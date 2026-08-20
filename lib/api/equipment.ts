@@ -1,0 +1,200 @@
+import { apiFetch } from "@/lib/api/client";
+
+/** BE device/domain/entity/EquipmentCategory와 동일 (한글 라벨은 EQUIPMENT_CATEGORY_LABELS에서만 매핑). */
+export type EquipmentCategory =
+  | "LAPTOP"
+  | "TABLET"
+  | "CAMERA"
+  | "LENS"
+  | "MONITOR"
+  | "VR"
+  | "GAME_CONSOLE"
+  | "PROJECTOR"
+  | "OTHER";
+
+export const EQUIPMENT_CATEGORIES: EquipmentCategory[] = [
+  "LAPTOP",
+  "TABLET",
+  "CAMERA",
+  "LENS",
+  "MONITOR",
+  "VR",
+  "GAME_CONSOLE",
+  "PROJECTOR",
+  "OTHER",
+];
+
+export const EQUIPMENT_CATEGORY_LABELS: Record<EquipmentCategory, string> = {
+  LAPTOP: "노트북",
+  TABLET: "태블릿",
+  CAMERA: "카메라",
+  LENS: "렌즈",
+  MONITOR: "모니터",
+  VR: "VR기기",
+  GAME_CONSOLE: "게임기",
+  PROJECTOR: "프로젝터",
+  OTHER: "기타",
+};
+
+export type ProductCondition = "NORMAL" | "DAMAGED" | "DIRTY" | "MISSING_PART" | "OTHER";
+
+export const PRODUCT_CONDITIONS: ProductCondition[] = [
+  "NORMAL",
+  "DAMAGED",
+  "DIRTY",
+  "MISSING_PART",
+  "OTHER",
+];
+
+export const PRODUCT_CONDITION_LABELS: Record<ProductCondition, string> = {
+  NORMAL: "양호",
+  DAMAGED: "파손",
+  DIRTY: "오염",
+  MISSING_PART: "부속품 누락",
+  OTHER: "기타",
+};
+
+export type EquipmentStatus = "ACTIVE" | "INACTIVE" | "MAINTENANCE" | "SUSPENDED" | "DELETED";
+
+export interface EquipmentSummary {
+  id: string;
+  name: string;
+  category: EquipmentCategory;
+  dailyPrice: number;
+  availableFrom: string | null;
+  availableTo: string | null;
+  productCondition: ProductCondition;
+  thumbnailUrl: string | null;
+  averageRating: number;
+  reviewCount: number;
+}
+
+export interface EquipmentImage {
+  id: string;
+  imageUrl: string;
+  sortOrder: number;
+  thumbnail: boolean;
+}
+
+export interface EquipmentOwner {
+  id: string;
+  nickname: string;
+}
+
+export interface EquipmentDetail {
+  id: string;
+  name: string;
+  category: EquipmentCategory;
+  description: string;
+  dailyPrice: number;
+  availableFrom: string | null;
+  availableTo: string | null;
+  status: EquipmentStatus;
+  productCondition: ProductCondition;
+  conditionDetail: string | null;
+  images: EquipmentImage[];
+  owner: EquipmentOwner;
+  averageRating: number;
+  reviewCount: number;
+  createdAt: string;
+}
+
+export interface EquipmentListResult {
+  content: EquipmentSummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
+export interface EquipmentSearchParams {
+  keyword?: string;
+  category?: EquipmentCategory;
+  minPrice?: number;
+  maxPrice?: number;
+  startDate?: string;
+  endDate?: string;
+  sort?: "LATEST" | "PRICE_ASC" | "PRICE_DESC" | "RATING_DESC";
+  page?: number;
+  size?: number;
+}
+
+interface EquipmentSummaryDto {
+  id: number;
+  name: string;
+  category: EquipmentCategory;
+  dailyPrice: number;
+  availableFrom: string | null;
+  availableTo: string | null;
+  productCondition: ProductCondition;
+  thumbnailUrl: string | null;
+  averageRating: number;
+  reviewCount: number;
+}
+
+interface EquipmentDetailDto extends Omit<EquipmentSummaryDto, "thumbnailUrl"> {
+  description: string;
+  status: EquipmentStatus;
+  conditionDetail: string | null;
+  images: { id: number; imageUrl: string; sortOrder: number; thumbnail: boolean }[];
+  owner: { id: number; nickname: string };
+  createdAt: string;
+}
+
+function toSummary(dto: EquipmentSummaryDto): EquipmentSummary {
+  return { ...dto, id: String(dto.id) };
+}
+
+function toDetail(dto: EquipmentDetailDto): EquipmentDetail {
+  return {
+    ...dto,
+    id: String(dto.id),
+    images: dto.images.map((image) => ({ ...image, id: String(image.id) })),
+    owner: { id: String(dto.owner.id), nickname: dto.owner.nickname },
+  };
+}
+
+export async function fetchEquipmentList(params: EquipmentSearchParams = {}): Promise<EquipmentListResult> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") query.set(key, String(value));
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const result = await apiFetch<{
+    content: EquipmentSummaryDto[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    first: boolean;
+    last: boolean;
+  }>(`/api/v1/devices${suffix}`);
+  return { ...result, content: result.content.map(toSummary) };
+}
+
+export async function fetchEquipmentDetail(equipmentId: string): Promise<EquipmentDetail> {
+  const dto = await apiFetch<EquipmentDetailDto>(`/api/v1/devices/${equipmentId}`);
+  return toDetail(dto);
+}
+
+export interface EquipmentCreateInput {
+  category: EquipmentCategory;
+  name: string;
+  description: string;
+  dailyPrice: number;
+  availableFrom: string;
+  availableTo: string;
+  productCondition: ProductCondition;
+  conditionDetail?: string;
+  imageUrls: string[];
+}
+
+export async function createEquipment(input: EquipmentCreateInput): Promise<{ equipmentId: string }> {
+  const dto = await apiFetch<{ equipmentId: number }>("/api/v1/devices", {
+    method: "POST",
+    body: input,
+  });
+  return { equipmentId: String(dto.equipmentId) };
+}

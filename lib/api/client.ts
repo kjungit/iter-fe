@@ -98,6 +98,34 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/** multipart 업로드 전용 — Content-Type을 직접 안 붙여야 브라우저가 boundary를 채운 값을 넣는다. */
+export async function apiUpload<T>(
+  path: string,
+  formData: FormData,
+  skipAuthRetry = false,
+): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: formData,
+  });
+
+  if (response.status === 401 && !skipAuthRetry) {
+    const refreshed = await tryRefresh();
+    if (refreshed) return apiUpload<T>(path, formData, true);
+    setAccessToken(null);
+    throw await parseErrorResponse(response);
+  }
+
+  if (!response.ok) throw await parseErrorResponse(response);
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
 /** refresh는 apiFetch를 거치면 401 재시도 로직과 순환 참조가 생기므로 별도 구현. */
 async function tryRefresh(): Promise<boolean> {
   try {

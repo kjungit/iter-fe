@@ -1,19 +1,25 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { CategoryChips } from "@/components/equipment/CategoryChips";
 import { EquipmentGrid } from "@/components/equipment/EquipmentGrid";
+import { fetchEquipmentList, type EquipmentCategory } from "@/lib/api/equipment";
 import { useAppData } from "@/lib/store/app-data-context";
-import type { EquipmentCategory } from "@/lib/types";
 
 const ALL = "전체";
 
 export function HomeView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { equipment, rentals } = useAppData();
+  const { rentals } = useAppData();
 
   const category = (searchParams.get("category") as EquipmentCategory | null) ?? ALL;
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["equipment", "list", category],
+    queryFn: () => fetchEquipmentList(category === ALL ? {} : { category }),
+  });
 
   const handleCategoryChange = (next: EquipmentCategory | typeof ALL) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -25,9 +31,6 @@ export function HomeView() {
     const query = params.toString();
     router.push(query ? `/?${query}` : "/");
   };
-
-  const filteredEquipment =
-    category === ALL ? equipment : equipment.filter((item) => item.category === category);
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-6 pt-8 pb-20">
@@ -43,7 +46,15 @@ export function HomeView() {
 
       <CategoryChips value={category} onChange={handleCategoryChange} />
 
-      <EquipmentGrid equipment={filteredEquipment} rentals={rentals} />
+      {isLoading && (
+        <p className="py-16 text-center text-[12.5px] text-text-secondary">불러오는 중...</p>
+      )}
+      {isError && (
+        <p className="py-16 text-center text-[12.5px] text-badge-danger-fg">
+          장비 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+        </p>
+      )}
+      {data && <EquipmentGrid equipment={data.content} rentals={rentals} />}
     </div>
   );
 }

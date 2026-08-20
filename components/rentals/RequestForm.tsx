@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { diffInDays, parseISODate } from "@/lib/date";
 import { formatCurrency, formatDateRange } from "@/lib/format";
+import { fetchEquipmentDetail } from "@/lib/api/equipment";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
 import { useAppData } from "@/lib/store/app-data-context";
 import type { ShippingAddress } from "@/lib/types";
@@ -30,8 +32,11 @@ interface RequestFormProps {
 export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
   const router = useRouter();
   const currentUser = useRequireAuth();
-  const { equipment, createRentalRequest } = useAppData();
-  const item = equipment.find((candidate) => candidate.id === equipmentId);
+  const { createRentalRequest } = useAppData();
+  const { data: item, isLoading } = useQuery({
+    queryKey: ["equipment", "detail", equipmentId],
+    queryFn: () => fetchEquipmentDetail(equipmentId),
+  });
 
   const [address, setAddress] = useState<ShippingAddress>(
     currentUser?.defaultAddress ?? EMPTY_ADDRESS,
@@ -39,6 +44,14 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
   const [message, setMessage] = useState("");
 
   if (!currentUser) return null;
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-[620px] px-6 py-16 text-center text-[13px] text-text-secondary">
+        불러오는 중...
+      </div>
+    );
+  }
 
   if (!item || !start || !end) {
     return (
@@ -52,7 +65,7 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
   }
 
   const days = diffInDays(parseISODate(end), parseISODate(start)) + 1;
-  const totalPrice = days * item.pricePerDay;
+  const totalPrice = days * item.dailyPrice;
 
   const updateAddress = (field: keyof ShippingAddress, value: string) => {
     setAddress((prev) => ({ ...prev, [field]: value }));
@@ -68,8 +81,8 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
   const handleSubmit = () => {
     createRentalRequest({
       equipmentId: item.id,
-      ownerId: item.ownerId,
-      ownerName: item.ownerName,
+      ownerId: item.owner.id,
+      ownerName: item.owner.nickname,
       borrowerId: currentUser.id,
       borrowerName: currentUser.name,
       startDate: start,
@@ -93,7 +106,7 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
 
       <div className="flex gap-3.5 rounded-lg border border-border p-4">
         <div className="h-16 w-16 shrink-0">
-          <ImagePlaceholder rounded="rounded-sm" />
+          <ImagePlaceholder rounded="rounded-sm" src={item.images[0]?.imageUrl} alt={item.name} />
         </div>
         <div>
           <div className="text-[14px] font-bold text-ink">{item.name}</div>

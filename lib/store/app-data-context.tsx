@@ -59,7 +59,6 @@ export type AdminEntity = "member" | "equipment" | "report" | "dispute";
 type NewRentalRequest = Omit<Rental, "id" | "status" | "createdAt">;
 type NewReport = Omit<Report, "id" | "createdAt" | "status" | "progress">;
 type NewReview = Omit<Review, "id" | "createdAt">;
-type NewEquipment = Omit<Equipment, "id" | "createdAt" | "status" | "ratingAverage" | "reportCount">;
 
 interface AppDataState {
   equipment: Equipment[];
@@ -103,8 +102,7 @@ type Action =
       memo: string;
       adminName: string;
     }
-  | { type: "submitReview"; input: NewReview }
-  | { type: "registerEquipment"; input: NewEquipment };
+  | { type: "submitReview"; input: NewReview };
 
 function todayIso(): string {
   return toISODate(new Date());
@@ -265,18 +263,6 @@ function reducer(state: AppDataState, action: Action): AppDataState {
       return { ...state, reviews: [review, ...state.reviews], sequence: state.sequence + 1 };
     }
 
-    case "registerEquipment": {
-      const equipment: Equipment = {
-        ...action.input,
-        id: `eq-${state.sequence}`,
-        status: "공개",
-        createdAt: todayIso(),
-        ratingAverage: 0,
-        reportCount: 0,
-      };
-      return { ...state, equipment: [equipment, ...state.equipment], sequence: state.sequence + 1 };
-    }
-
     default:
       return state;
   }
@@ -303,7 +289,6 @@ interface AppDataContextValue extends AppDataState {
   fileDispute: (reportId: string) => void;
   updateAdminStatus: (entity: AdminEntity, id: string, status: string, memo: string) => void;
   submitReview: (input: NewReview) => void;
-  registerEquipment: (input: NewEquipment) => void;
 }
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
@@ -372,7 +357,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           adminName: isAdminAuthenticated ? (currentUser?.name ?? "관리자") : "관리자",
         }),
       submitReview: (input) => dispatch({ type: "submitReview", input }),
-      registerEquipment: (input) => dispatch({ type: "registerEquipment", input }),
     };
   }, [
     state,

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
@@ -10,6 +11,11 @@ import { DateRangeCalendar } from "@/components/equipment/DateRangeCalendar";
 import { diffInDays, parseISODate, type DateRange } from "@/lib/date";
 import { formatCurrency } from "@/lib/format";
 import { getBookedDates, isEquipmentRented } from "@/lib/mock-data";
+import {
+  EQUIPMENT_CATEGORY_LABELS,
+  PRODUCT_CONDITION_LABELS,
+  fetchEquipmentDetail,
+} from "@/lib/api/equipment";
 import { useAppData } from "@/lib/store/app-data-context";
 
 interface EquipmentDetailViewProps {
@@ -18,12 +24,23 @@ interface EquipmentDetailViewProps {
 
 export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
   const router = useRouter();
-  const { equipment, rentals } = useAppData();
+  const { rentals } = useAppData();
   const [range, setRange] = useState<DateRange>({ start: null, end: null });
 
-  const item = equipment.find((candidate) => candidate.id === equipmentId);
+  const { data: item, isLoading, isError } = useQuery({
+    queryKey: ["equipment", "detail", equipmentId],
+    queryFn: () => fetchEquipmentDetail(equipmentId),
+  });
 
-  if (!item) {
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-[1180px] px-6 py-16 text-center text-[13px] text-text-secondary">
+        불러오는 중...
+      </div>
+    );
+  }
+
+  if (isError || !item) {
     return (
       <div className="mx-auto max-w-[1180px] px-6 py-16 text-center text-[13px] text-text-secondary">
         장비를 찾을 수 없습니다.{" "}
@@ -38,7 +55,8 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
   const bookedDates = getBookedDates(item.id, rentals);
   const days =
     range.start && range.end ? diffInDays(parseISODate(range.end), parseISODate(range.start)) + 1 : 0;
-  const totalPrice = days * item.pricePerDay;
+  const totalPrice = days * item.dailyPrice;
+  const thumbnails = item.images.slice(0, 4);
 
   const handleRequest = () => {
     if (!range.start || !range.end) return;
@@ -53,10 +71,17 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
 
       <div className="mt-5 grid grid-cols-[1.1fr_0.9fr] items-start gap-12">
         <div>
-          <ImagePlaceholder rounded="rounded-xl" className="mb-3" />
+          <ImagePlaceholder rounded="rounded-xl" className="mb-3" src={thumbnails[0]?.imageUrl} alt={item.name} />
           <div className="flex gap-2.5">
             {Array.from({ length: 4 }).map((_, index) => (
-              <ImagePlaceholder key={index} size="sm" rounded="rounded-sm" className="flex-1" />
+              <ImagePlaceholder
+                key={index}
+                size="sm"
+                rounded="rounded-sm"
+                className="flex-1"
+                src={thumbnails[index]?.imageUrl}
+                alt={item.name}
+              />
             ))}
           </div>
           <div className="mt-7 rounded-lg bg-surface px-5 py-[18px]">
@@ -66,16 +91,22 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
         </div>
 
         <div>
-          <div className="text-[13px] font-semibold text-text-secondary">{item.category}</div>
+          <div className="text-[13px] font-semibold text-text-secondary">
+            {EQUIPMENT_CATEGORY_LABELS[item.category]}
+          </div>
           <h1 className="mt-1 text-[24px] font-extrabold text-ink">{item.name}</h1>
 
           <div className="mt-3 flex gap-2">
-            <Badge label={`상태: ${item.condition}`} palette="progress" size="md" />
-            <Badge label={`등록자: ${item.ownerName}`} palette="neutral" size="md" />
+            <Badge
+              label={`상태: ${PRODUCT_CONDITION_LABELS[item.productCondition]}`}
+              palette="progress"
+              size="md"
+            />
+            <Badge label={`등록자: ${item.owner.nickname}`} palette="neutral" size="md" />
           </div>
 
           <div className="mt-[22px] border-t border-border pt-5">
-            <span className="text-[26px] font-extrabold text-ink">{formatCurrency(item.pricePerDay)}</span>
+            <span className="text-[26px] font-extrabold text-ink">{formatCurrency(item.dailyPrice)}</span>
             <span className="ml-1 text-[14px] font-semibold text-text-secondary">/ 일</span>
           </div>
 
