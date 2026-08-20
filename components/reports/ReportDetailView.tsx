@@ -5,10 +5,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Timeline } from "@/components/ui/Timeline";
 import { formatDisplayDate } from "@/lib/format";
 import { reportStatusBadge } from "@/lib/status";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 
 export function ReportDetailView({ reportId }: { reportId: string }) {
-  const { reports } = useMockData();
+  const { reports } = useAppData();
   const report = reports.find((candidate) => candidate.id === reportId);
 
   if (!report) {

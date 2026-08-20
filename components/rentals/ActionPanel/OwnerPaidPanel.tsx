@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { Rental } from "@/lib/types";
 
 const CARRIERS = ["CJ대한통운", "한진택배", "롯데택배", "우체국택배"];
 
 export function OwnerPaidPanel({ rental }: { rental: Rental }) {
-  const { registerShipping } = useMockData();
+  const { registerShipping } = useAppData();
   const [carrier, setCarrier] = useState(CARRIERS[0]);
   const [trackingNumber, setTrackingNumber] = useState("");
 

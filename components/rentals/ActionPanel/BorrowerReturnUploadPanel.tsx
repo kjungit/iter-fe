@@ -7,13 +7,13 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
 import { useConfirm } from "@/lib/store/confirm-modal-context";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { EquipmentCondition, Rental } from "@/lib/types";
 
 const CONDITIONS: EquipmentCondition[] = ["양호", "사용감 있음", "파손·이상 있음"];
 
 export function BorrowerReturnUploadPanel({ rental }: { rental: Rental }) {
-  const { submitReturnEvidence } = useMockData();
+  const { submitReturnEvidence } = useAppData();
   const confirm = useConfirm();
   const [photoCount, setPhotoCount] = useState(0);
   const [condition, setCondition] = useState<EquipmentCondition>("양호");

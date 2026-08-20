@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/layout/Header";
-import { MockDataProvider } from "@/lib/store/mock-data-context";
+import { AppQueryProvider } from "@/lib/query-client";
+import { AppDataProvider } from "@/lib/store/app-data-context";
 import { ConfirmModalProvider } from "@/lib/store/confirm-modal-context";
 import "./globals.css";
 
@@ -20,12 +21,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className="min-h-full flex flex-col bg-bg text-ink">
-        <MockDataProvider>
-          <ConfirmModalProvider>
-            <Header />
-            {children}
-          </ConfirmModalProvider>
-        </MockDataProvider>
+        <AppQueryProvider>
+          <AppDataProvider>
+            <ConfirmModalProvider>
+              <Header />
+              {children}
+            </ConfirmModalProvider>
+          </AppDataProvider>
+        </AppQueryProvider>
       </body>
     </html>
   );

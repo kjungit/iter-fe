@@ -7,16 +7,22 @@ import {
   useReducer,
   type ReactNode,
 } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toISODate } from "@/lib/date";
+import {
+  fetchCurrentUser,
+  login as apiLogin,
+  logout as apiLogout,
+  signUp as apiSignUp,
+  type SignUpInput,
+} from "@/lib/api/auth";
 import {
   ADMIN_HISTORY,
   ADMIN_MEMBERS,
-  CURRENT_USER_ID,
   DISPUTES,
   EQUIPMENT,
   RENTALS,
   REPORTS,
-  USERS,
 } from "@/lib/mock-data";
 import type {
   AdminHistoryEntry,
@@ -54,32 +60,27 @@ type NewRentalRequest = Omit<Rental, "id" | "status" | "createdAt">;
 type NewReport = Omit<Report, "id" | "createdAt" | "status" | "progress">;
 type NewReview = Omit<Review, "id" | "createdAt">;
 type NewEquipment = Omit<Equipment, "id" | "createdAt" | "status" | "ratingAverage" | "reportCount">;
-type NewUser = Omit<User, "id">;
 
-interface MockDataState {
+interface AppDataState {
   equipment: Equipment[];
   rentals: Rental[];
   reports: Report[];
   disputes: Dispute[];
   adminMembers: AdminMember[];
   adminHistory: AdminHistoryEntry[];
-  users: User[];
   reviews: Review[];
-  currentUserId: string;
   /** Monotonic counter backing generated ids — avoids impure Date.now()/crypto calls in render paths. */
   sequence: number;
 }
 
-const initialState: MockDataState = {
+const initialState: AppDataState = {
   equipment: EQUIPMENT,
   rentals: RENTALS,
   reports: REPORTS,
   disputes: DISPUTES,
   adminMembers: ADMIN_MEMBERS,
   adminHistory: ADMIN_HISTORY,
-  users: USERS,
   reviews: [],
-  currentUserId: CURRENT_USER_ID,
   sequence: 1,
 };
 
@@ -103,27 +104,24 @@ type Action =
       adminName: string;
     }
   | { type: "submitReview"; input: NewReview }
-  | { type: "registerEquipment"; input: NewEquipment }
-  | { type: "login"; email: string }
-  | { type: "signup"; input: NewUser }
-  | { type: "logout" };
+  | { type: "registerEquipment"; input: NewEquipment };
 
 function todayIso(): string {
   return toISODate(new Date());
 }
 
 function updateRental(
-  state: MockDataState,
+  state: AppDataState,
   rentalId: string,
   updater: (rental: Rental) => Rental,
-): MockDataState {
+): AppDataState {
   return {
     ...state,
     rentals: state.rentals.map((rental) => (rental.id === rentalId ? updater(rental) : rental)),
   };
 }
 
-function adminEntityLabel(state: MockDataState, entity: AdminEntity, id: string): string {
+function adminEntityLabel(state: AppDataState, entity: AdminEntity, id: string): string {
   switch (entity) {
     case "member":
       return state.adminMembers.find((member) => member.id === id)?.name ?? id;
@@ -136,7 +134,7 @@ function adminEntityLabel(state: MockDataState, entity: AdminEntity, id: string)
   }
 }
 
-function reducer(state: MockDataState, action: Action): MockDataState {
+function reducer(state: AppDataState, action: Action): AppDataState {
   switch (action.type) {
     case "approveRental":
       return updateRental(state, action.rentalId, (rental) => ({ ...rental, status: "PAID" }));
@@ -279,33 +277,20 @@ function reducer(state: MockDataState, action: Action): MockDataState {
       return { ...state, equipment: [equipment, ...state.equipment], sequence: state.sequence + 1 };
     }
 
-    case "login": {
-      const match = state.users.find(
-        (user) => user.email.toLowerCase() === action.email.toLowerCase(),
-      );
-      return { ...state, currentUserId: match?.id ?? CURRENT_USER_ID };
-    }
-
-    case "signup": {
-      const user: User = { ...action.input, id: `u-${state.sequence}` };
-      return {
-        ...state,
-        users: [...state.users, user],
-        currentUserId: user.id,
-        sequence: state.sequence + 1,
-      };
-    }
-
-    case "logout":
-      return { ...state, currentUserId: CURRENT_USER_ID };
-
     default:
       return state;
   }
 }
 
-interface MockDataContextValue extends MockDataState {
-  currentUser: User;
+interface AppDataContextValue extends AppDataState {
+  currentUser: User | null;
+  isAuthLoading: boolean;
+  /** currentUser와 동일한 값의 별칭 — role이 ADMIN일 때만 존재. 관리자 화면 diff를 줄이기 위한 편의 필드. */
+  currentAdmin: User | null;
+  isAdminAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (input: SignUpInput) => Promise<void>;
+  logout: () => Promise<void>;
   approveRental: (rentalId: string) => void;
   rejectRental: (rentalId: string) => void;
   registerShipping: (rentalId: string, shipping: ShippingInfo) => void;
@@ -319,23 +304,51 @@ interface MockDataContextValue extends MockDataState {
   updateAdminStatus: (entity: AdminEntity, id: string, status: string, memo: string) => void;
   submitReview: (input: NewReview) => void;
   registerEquipment: (input: NewEquipment) => void;
-  login: (email: string) => void;
-  signup: (input: NewUser) => void;
-  logout: () => void;
 }
 
-const MockDataContext = createContext<MockDataContextValue | null>(null);
+const AppDataContext = createContext<AppDataContextValue | null>(null);
 
-export function MockDataProvider({ children }: { children: ReactNode }) {
+export function AppDataProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const queryClient = useQueryClient();
 
-  const value = useMemo<MockDataContextValue>(() => {
-    const currentUser =
-      state.users.find((user) => user.id === state.currentUserId) ?? state.users[0];
+  const meQuery = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: fetchCurrentUser,
+    staleTime: 60_000,
+  });
+  const currentUser = meQuery.data ?? null;
 
+  const loginMutation = useMutation({
+    mutationFn: ({ email, password }: { email: string; password: string }) =>
+      apiLogin(email, password),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["auth", "me"] }),
+  });
+
+  const signupMutation = useMutation({
+    mutationFn: async (input: SignUpInput) => {
+      await apiSignUp(input);
+      await apiLogin(input.email, input.password);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["auth", "me"] }),
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: apiLogout,
+    onSuccess: () => queryClient.setQueryData(["auth", "me"], null),
+  });
+
+  const value = useMemo<AppDataContextValue>(() => {
+    const isAdminAuthenticated = currentUser?.role === "ADMIN";
     return {
       ...state,
       currentUser,
+      isAuthLoading: meQuery.isLoading,
+      currentAdmin: isAdminAuthenticated ? currentUser : null,
+      isAdminAuthenticated,
+      login: (email, password) => loginMutation.mutateAsync({ email, password }),
+      signup: (input) => signupMutation.mutateAsync(input),
+      logout: () => logoutMutation.mutateAsync(),
       approveRental: (rentalId) => dispatch({ type: "approveRental", rentalId }),
       rejectRental: (rentalId) => dispatch({ type: "rejectRental", rentalId }),
       registerShipping: (rentalId, shipping) =>
@@ -350,20 +363,31 @@ export function MockDataProvider({ children }: { children: ReactNode }) {
       submitReport: (input) => dispatch({ type: "submitReport", input }),
       fileDispute: (reportId) => dispatch({ type: "fileDispute", reportId }),
       updateAdminStatus: (entity, id, status, memo) =>
-        dispatch({ type: "updateAdminStatus", entity, id, status, memo, adminName: "관리자" }),
+        dispatch({
+          type: "updateAdminStatus",
+          entity,
+          id,
+          status,
+          memo,
+          adminName: isAdminAuthenticated ? (currentUser?.name ?? "관리자") : "관리자",
+        }),
       submitReview: (input) => dispatch({ type: "submitReview", input }),
       registerEquipment: (input) => dispatch({ type: "registerEquipment", input }),
-      login: (email) => dispatch({ type: "login", email }),
-      signup: (input) => dispatch({ type: "signup", input }),
-      logout: () => dispatch({ type: "logout" }),
     };
-  }, [state]);
+  }, [
+    state,
+    currentUser,
+    meQuery.isLoading,
+    loginMutation,
+    signupMutation,
+    logoutMutation,
+  ]);
 
-  return <MockDataContext.Provider value={value}>{children}</MockDataContext.Provider>;
+  return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
 }
 
-export function useMockData(): MockDataContextValue {
-  const ctx = useContext(MockDataContext);
-  if (!ctx) throw new Error("useMockData must be used within MockDataProvider");
+export function useAppData(): AppDataContextValue {
+  const ctx = useContext(AppDataContext);
+  if (!ctx) throw new Error("useAppData must be used within AppDataProvider");
   return ctx;
 }

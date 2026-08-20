@@ -9,14 +9,16 @@ import { PhotoUploadSlotGrid } from "@/components/ui/PhotoUploadSlot";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { EQUIPMENT_CATEGORIES } from "@/lib/mock-data";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { EquipmentCategory, EquipmentCondition } from "@/lib/types";
 
 const CONDITIONS: EquipmentCondition[] = ["양호", "사용감 있음", "파손·이상 있음"];
 
 export function EquipmentRegisterForm() {
   const router = useRouter();
-  const { currentUser, registerEquipment } = useMockData();
+  const currentUser = useRequireAuth();
+  const { registerEquipment } = useAppData();
 
   const [category, setCategory] = useState<EquipmentCategory>(EQUIPMENT_CATEGORIES[0]);
   const [name, setName] = useState("");
@@ -24,6 +26,8 @@ export function EquipmentRegisterForm() {
   const [description, setDescription] = useState("");
   const [condition, setCondition] = useState<EquipmentCondition>("양호");
   const [photoCount, setPhotoCount] = useState(0);
+
+  if (!currentUser) return null;
 
   const canSubmit = name.trim().length > 0 && Number(price) > 0 && description.trim().length > 0;
 

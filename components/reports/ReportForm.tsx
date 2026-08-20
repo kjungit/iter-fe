@@ -10,18 +10,22 @@ import { PhotoUploadSlotGrid } from "@/components/ui/PhotoUploadSlot";
 import { Textarea } from "@/components/ui/Textarea";
 import { formatDateRange } from "@/lib/format";
 import { useConfirm } from "@/lib/store/confirm-modal-context";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { ReportReason } from "@/lib/types";
 
 export function ReportForm({ rentalId }: { rentalId: string }) {
   const router = useRouter();
-  const { rentals, equipment, currentUser, submitReport } = useMockData();
+  const currentUser = useRequireAuth();
+  const { rentals, equipment, submitReport } = useAppData();
   const confirm = useConfirm();
 
   const rental = rentals.find((candidate) => candidate.id === rentalId);
   const [reason, setReason] = useState<ReportReason>("장비 파손 / 상태 불일치");
   const [detail, setDetail] = useState("");
   const [photoCount, setPhotoCount] = useState(0);
+
+  if (!currentUser) return null;
 
   if (!rental) {
     return (

@@ -19,9 +19,10 @@ export const EQUIPMENT_CATEGORIES: EquipmentCategory[] = [
   "렌즈",
 ];
 
-/** id of the member the app treats as "logged in" by default. */
-export const CURRENT_USER_ID = "m1";
-
+/**
+ * 대여/신고/관리자 회원 목데이터가 참조하는 이름 시드일 뿐, 더 이상 "로그인된 사용자"를
+ * 의미하지 않음 (로그인은 lib/api/auth.ts를 통해 실 백엔드에서 조회) — role은 시드 표시용.
+ */
 export const USERS: User[] = [
   {
     id: "m1",
@@ -29,6 +30,7 @@ export const USERS: User[] = [
     nickname: "doohyun",
     email: "kimdohyun@example.com",
     phone: "010-1234-5678",
+    role: "USER",
     avatarInitials: "김도",
     defaultAddress: {
       recipientName: "김도현",
@@ -44,6 +46,7 @@ export const USERS: User[] = [
     nickname: "seoyeon",
     email: "seoyeon.lee@example.com",
     phone: "010-2345-6789",
+    role: "USER",
     avatarInitials: "이서",
     defaultAddress: {
       recipientName: "이서연",
@@ -59,6 +62,7 @@ export const USERS: User[] = [
     nickname: "junhyuk",
     email: "junhyuk.park@example.com",
     phone: "010-3456-7890",
+    role: "USER",
     avatarInitials: "박준",
     defaultAddress: {
       recipientName: "박준혁",
@@ -74,6 +78,7 @@ export const USERS: User[] = [
     nickname: "yuna",
     email: "yuna.choi@example.com",
     phone: "010-4567-8901",
+    role: "USER",
     avatarInitials: "최유",
     defaultAddress: {
       recipientName: "최유나",
@@ -89,6 +94,7 @@ export const USERS: User[] = [
     nickname: "minsu",
     email: "minsu.jung@example.com",
     phone: "010-5678-9012",
+    role: "USER",
     avatarInitials: "정민",
     defaultAddress: {
       recipientName: "정민수",
@@ -220,7 +226,7 @@ export const EQUIPMENT: Equipment[] = [
   },
 ];
 
-const SHIPPING_TEMPLATE = (recipientId: string) => USERS.find((u) => u.id === recipientId)!.defaultAddress;
+const SHIPPING_TEMPLATE = (recipientId: string) => USERS.find((u) => u.id === recipientId)!.defaultAddress!;
 
 export const RENTALS: Rental[] = [
   {

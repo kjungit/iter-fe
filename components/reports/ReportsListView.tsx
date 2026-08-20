@@ -4,10 +4,15 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { formatDisplayDate } from "@/lib/format";
 import { reportStatusBadge } from "@/lib/status";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
+import { useAppData } from "@/lib/store/app-data-context";
 
 export function ReportsListView() {
-  const { reports, currentUser } = useMockData();
+  const currentUser = useRequireAuth();
+  const { reports } = useAppData();
+
+  if (!currentUser) return null;
+
   const mine = reports.filter((report) => report.reporterId === currentUser.id);
 
   return (

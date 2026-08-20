@@ -8,11 +8,15 @@ import { Badge } from "@/components/ui/Badge";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { formatDateRange } from "@/lib/format";
 import { rentalRole, rentalStatusBadge } from "@/lib/status";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
+import { useAppData } from "@/lib/store/app-data-context";
 
 export function RentalDetailView({ rentalId }: { rentalId: string }) {
-  const { rentals, equipment, currentUser } = useMockData();
+  const currentUser = useRequireAuth();
+  const { rentals, equipment } = useAppData();
   const rental = rentals.find((candidate) => candidate.id === rentalId);
+
+  if (!currentUser) return null;
 
   if (!rental) {
     return (

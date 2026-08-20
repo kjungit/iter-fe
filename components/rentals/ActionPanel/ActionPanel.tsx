@@ -8,12 +8,13 @@ import { OwnerPaidPanel } from "@/components/rentals/ActionPanel/OwnerPaidPanel"
 import { OwnerPendingPanel } from "@/components/rentals/ActionPanel/OwnerPendingPanel";
 import { OwnerReturnRequestedPanel } from "@/components/rentals/ActionPanel/OwnerReturnRequestedPanel";
 import { rentalRole } from "@/lib/status";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
 import type { Rental } from "@/lib/types";
 
 /** Exactly one panel is shown at a time — driven by (role, status), per the handoff's action-panel table. */
 export function ActionPanel({ rental }: { rental: Rental }) {
-  const { currentUser } = useMockData();
+  const currentUser = useRequireAuth();
+  if (!currentUser) return null;
   const role = rentalRole(rental, currentUser.id);
 
   if (rental.status === "COMPLETED") return <CompletedPanel rental={rental} />;

@@ -6,14 +6,18 @@ import { RentalListItem } from "@/components/rentals/RentalListItem";
 import { Chip } from "@/components/ui/Chip";
 import { Tabs } from "@/components/ui/Tabs";
 import { isOverdue } from "@/lib/status";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
+import { useAppData } from "@/lib/store/app-data-context";
 
 type RentalTab = "borrowed" | "lent";
 
 export function RentalsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { rentals, currentUser } = useMockData();
+  const currentUser = useRequireAuth();
+  const { rentals } = useAppData();
+
+  if (!currentUser) return null;
 
   const tab: RentalTab = searchParams.get("tab") === "lent" ? "lent" : "borrowed";
   const overdueOnly = searchParams.get("overdue") === "1";

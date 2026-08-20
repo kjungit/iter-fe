@@ -25,7 +25,7 @@ import {
   type BadgeInfo,
 } from "@/lib/status";
 import { useConfirm } from "@/lib/store/confirm-modal-context";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 
 interface RelatedItem {
   title: string;
@@ -46,7 +46,7 @@ interface DetailContent {
 export function AdminDetailView({ entity, id }: { entity: AdminEntityKey; id: string }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const store = useMockData();
+  const store = useAppData();
   const { updateAdminStatus, fileDispute } = store;
 
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
@@ -227,7 +227,7 @@ export function AdminDetailView({ entity, id }: { entity: AdminEntityKey; id: st
 function buildDetailContent(
   entity: AdminEntityKey,
   id: string,
-  store: ReturnType<typeof useMockData>,
+  store: ReturnType<typeof useAppData>,
   convertReportToDispute: () => void,
 ): DetailContent | null {
   const { adminMembers, equipment, reports, disputes, rentals } = store;

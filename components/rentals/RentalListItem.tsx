@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { formatCurrency, formatDateRange } from "@/lib/format";
 import { isOverdue, overdueDays, rentalStatusBadge, type BadgeInfo } from "@/lib/status";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { Rental } from "@/lib/types";
 
 interface RentalListItemProps {
@@ -15,7 +15,7 @@ interface RentalListItemProps {
 }
 
 export function RentalListItem({ rental, perspective, badgeOverride }: RentalListItemProps) {
-  const { equipment } = useMockData();
+  const { equipment } = useAppData();
   const item = equipment.find((candidate) => candidate.id === rental.equipmentId);
   const badge = badgeOverride ?? rentalStatusBadge(rental.status);
   const overdue = isOverdue(rental);

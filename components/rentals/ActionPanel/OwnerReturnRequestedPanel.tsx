@@ -4,7 +4,7 @@ import { Button, LinkButton } from "@/components/ui/Button";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
 import { useConfirm } from "@/lib/store/confirm-modal-context";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { Rental } from "@/lib/types";
 
 function EvidenceColumn({
@@ -28,7 +28,7 @@ function EvidenceColumn({
 }
 
 export function OwnerReturnRequestedPanel({ rental }: { rental: Rental }) {
-  const { finalizeReturn } = useMockData();
+  const { finalizeReturn } = useAppData();
   const confirm = useConfirm();
 
   const handleFinalize = async () => {

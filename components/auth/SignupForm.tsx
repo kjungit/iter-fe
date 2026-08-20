@@ -5,34 +5,36 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { ApiError } from "@/lib/api/client";
+import { useAppData } from "@/lib/store/app-data-context";
 
 export function SignupForm() {
   const router = useRouter();
-  const { signup } = useMockData();
+  const { signup } = useAppData();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
   const [phone, setPhone] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    signup({
-      name,
-      nickname,
-      email,
-      phone,
-      avatarInitials: name.slice(0, 2) || "IT",
-      defaultAddress: {
-        recipientName: name,
-        phone,
-        zipcode: "",
-        address: "",
-        detailAddress: "",
-      },
-    });
-    router.push("/");
+  const handleSubmit = async () => {
+    if (password !== passwordConfirm) {
+      setError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await signup({ email, password, name, nickname, phone });
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "회원가입에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -47,7 +49,7 @@ export function SignupForm() {
         />
         <Input
           type="password"
-          placeholder="비밀번호"
+          placeholder="비밀번호 (8~32자)"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
@@ -64,16 +66,18 @@ export function SignupForm() {
           onChange={(event) => setNickname(event.target.value)}
         />
         <Input
-          placeholder="휴대폰 번호"
+          placeholder="휴대폰 번호 (010-1234-5678)"
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
         />
       </div>
+      {error && <p className="mt-2.5 text-[12.5px] text-badge-danger-fg">{error}</p>}
       <Button
         variant="primary"
         fullWidth
         className="mt-5 rounded-sm py-[15px] text-[14.5px]"
         onClick={handleSubmit}
+        loading={submitting}
       >
         가입하기
       </Button>

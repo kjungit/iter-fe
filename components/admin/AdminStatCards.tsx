@@ -1,10 +1,10 @@
 "use client";
 
 import { StatCard } from "@/components/ui/StatCard";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 
 export function AdminStatCards() {
-  const { adminMembers, equipment, reports, disputes } = useMockData();
+  const { adminMembers, equipment, reports, disputes } = useAppData();
 
   const unresolvedReports = reports.filter(
     (report) => report.status !== "처리완료" && report.status !== "반려",

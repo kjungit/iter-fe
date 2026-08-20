@@ -6,13 +6,13 @@ import { PhotoUploadSlotGrid } from "@/components/ui/PhotoUploadSlot";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { EquipmentCondition, Rental } from "@/lib/types";
 
 const CONDITIONS: EquipmentCondition[] = ["양호", "사용감 있음", "파손·이상 있음"];
 
 export function BorrowerShippingPanel({ rental }: { rental: Rental }) {
-  const { confirmReceipt } = useMockData();
+  const { confirmReceipt } = useAppData();
   const [photoCount, setPhotoCount] = useState(0);
   const [condition, setCondition] = useState<EquipmentCondition>("양호");
   const [memo, setMemo] = useState("");

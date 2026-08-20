@@ -6,11 +6,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { StarRating } from "@/components/ui/StarRating";
 import { Textarea } from "@/components/ui/Textarea";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 
 export function ReviewForm({ rentalId }: { rentalId: string }) {
   const router = useRouter();
-  const { rentals, submitReview } = useMockData();
+  const { rentals, submitReview } = useAppData();
   const rental = rentals.find((candidate) => candidate.id === rentalId);
 
   const [rating, setRating] = useState(5);

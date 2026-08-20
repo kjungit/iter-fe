@@ -3,11 +3,11 @@
 import { Button } from "@/components/ui/Button";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
 import { useConfirm } from "@/lib/store/confirm-modal-context";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { Rental } from "@/lib/types";
 
 export function OwnerPendingPanel({ rental }: { rental: Rental }) {
-  const { approveRental, rejectRental } = useMockData();
+  const { approveRental, rejectRental } = useAppData();
   const confirm = useConfirm();
 
   const handleReject = async () => {

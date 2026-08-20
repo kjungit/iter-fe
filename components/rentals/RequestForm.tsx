@@ -9,8 +9,17 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { diffInDays, parseISODate } from "@/lib/date";
 import { formatCurrency, formatDateRange } from "@/lib/format";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { ShippingAddress } from "@/lib/types";
+
+const EMPTY_ADDRESS: ShippingAddress = {
+  recipientName: "",
+  phone: "",
+  zipcode: "",
+  address: "",
+  detailAddress: "",
+};
 
 interface RequestFormProps {
   equipmentId: string;
@@ -20,11 +29,16 @@ interface RequestFormProps {
 
 export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
   const router = useRouter();
-  const { equipment, currentUser, createRentalRequest } = useMockData();
+  const currentUser = useRequireAuth();
+  const { equipment, createRentalRequest } = useAppData();
   const item = equipment.find((candidate) => candidate.id === equipmentId);
 
-  const [address, setAddress] = useState<ShippingAddress>(currentUser.defaultAddress);
+  const [address, setAddress] = useState<ShippingAddress>(
+    currentUser?.defaultAddress ?? EMPTY_ADDRESS,
+  );
   const [message, setMessage] = useState("");
+
+  if (!currentUser) return null;
 
   if (!item || !start || !end) {
     return (

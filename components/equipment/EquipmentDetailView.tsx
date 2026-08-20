@@ -10,7 +10,7 @@ import { DateRangeCalendar } from "@/components/equipment/DateRangeCalendar";
 import { diffInDays, parseISODate, type DateRange } from "@/lib/date";
 import { formatCurrency } from "@/lib/format";
 import { getBookedDates, isEquipmentRented } from "@/lib/mock-data";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 
 interface EquipmentDetailViewProps {
   equipmentId: string;
@@ -18,7 +18,7 @@ interface EquipmentDetailViewProps {
 
 export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
   const router = useRouter();
-  const { equipment, rentals } = useMockData();
+  const { equipment, rentals } = useAppData();
   const [range, setRange] = useState<DateRange>({ start: null, end: null });
 
   const item = equipment.find((candidate) => candidate.id === equipmentId);

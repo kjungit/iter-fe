@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { CategoryChips } from "@/components/equipment/CategoryChips";
 import { EquipmentGrid } from "@/components/equipment/EquipmentGrid";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { EquipmentCategory } from "@/lib/types";
 
 const ALL = "전체";
@@ -11,7 +11,7 @@ const ALL = "전체";
 export function HomeView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { equipment, rentals } = useMockData();
+  const { equipment, rentals } = useAppData();
 
   const category = (searchParams.get("category") as EquipmentCategory | null) ?? ALL;
 

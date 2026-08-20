@@ -27,7 +27,8 @@ components/
 - 상태 배지 색은 컴포넌트에서 하드코딩하지 않고 항상 `lib/status.ts`의 매핑 함수를 통해서만
   가져온다 (배지 팔레트가 여러 화면에서 재사용되므로 단일 소스 유지).
 - `ui/`는 도메인 지식 없이 순수 프레젠테이셔널만 (mock store를 import하지 않는다).
-  기능 컴포넌트(`equipment/`, `rentals/` 등)만 `useMockData()`를 호출.
+  기능 컴포넌트(`equipment/`, `rentals/` 등)만 `useAppData()`를 호출(로그인 필요 화면은
+  `lib/auth/use-require-auth.ts`의 `useRequireAuth()` 사용).
 - 파괴적 액션 버튼은 직접 액션을 호출하지 않고 항상 `useConfirm()`을 거쳐 확인 후 실행.
 - 반응형은 1차 스코프 아님 (핸드오프가 데스크톱 기준 고정 max-width) — 임의로 브레이크포인트
   추가하지 않는다. 필요해지면 루트 CLAUDE.md에 먼저 결정 기록.

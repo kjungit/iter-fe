@@ -2,10 +2,15 @@
 
 import Link from "next/link";
 import { RentalListItem } from "@/components/rentals/RentalListItem";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
+import { useAppData } from "@/lib/store/app-data-context";
 
 export function ReturnsView() {
-  const { rentals, currentUser } = useMockData();
+  const currentUser = useRequireAuth();
+  const { rentals } = useAppData();
+
+  if (!currentUser) return null;
+
   const targets = rentals.filter(
     (rental) => rental.ownerId === currentUser.id && rental.status === "RETURN_REQUESTED",
   );

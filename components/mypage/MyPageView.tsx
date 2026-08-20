@@ -4,17 +4,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { formatDailyPrice } from "@/lib/format";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
+import { useAppData } from "@/lib/store/app-data-context";
 
 export function MyPageView() {
   const router = useRouter();
-  const { currentUser, equipment, reports, logout } = useMockData();
+  const currentUser = useRequireAuth();
+  const { equipment, reports, logout } = useAppData();
+
+  if (!currentUser) return null;
 
   const myEquipment = equipment.filter((item) => item.ownerId === currentUser.id);
   const myReportCount = reports.filter((report) => report.reporterId === currentUser.id).length;
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.push("/");
   };
 
@@ -34,9 +38,15 @@ export function MyPageView() {
 
       <h2 className="mt-7 mb-2.5 text-[13.5px] font-bold text-ink">기본 배송지</h2>
       <div className="rounded-md border border-border p-4 text-[13px] leading-[1.6] text-text-body-1">
-        {currentUser.defaultAddress.recipientName} · {currentUser.defaultAddress.phone}
-        <br />({currentUser.defaultAddress.zipcode}) {currentUser.defaultAddress.address}{" "}
-        {currentUser.defaultAddress.detailAddress}
+        {currentUser.defaultAddress ? (
+          <>
+            {currentUser.defaultAddress.recipientName} · {currentUser.defaultAddress.phone}
+            <br />({currentUser.defaultAddress.zipcode}) {currentUser.defaultAddress.address}{" "}
+            {currentUser.defaultAddress.detailAddress}
+          </>
+        ) : (
+          <span className="text-text-secondary">등록된 배송지가 없습니다.</span>
+        )}
       </div>
 
       <h2 className="mt-7 mb-2.5 text-[13.5px] font-bold text-ink">내가 등록한 장비</h2>

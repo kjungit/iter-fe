@@ -1,27 +1,42 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { fetchCurrentUser } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { useAppData } from "@/lib/store/app-data-context";
 
-export function LoginForm() {
+export function AdminLoginForm() {
   const router = useRouter();
-  const { login } = useAppData();
+  const { login, logout, isAdminAuthenticated } = useAppData();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (isAdminAuthenticated) router.push("/admin");
+  }, [isAdminAuthenticated, router]);
+
   const handleSubmit = async () => {
+    if (!email || !password) {
+      setError("이메일과 비밀번호를 모두 입력해주세요.");
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
       await login(email, password);
-      router.push("/");
+      const me = await fetchCurrentUser();
+      if (me?.role !== "ADMIN") {
+        await logout();
+        setError("관리자 권한이 없는 계정입니다.");
+        setSubmitting(false);
+        return;
+      }
+      router.push("/admin");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "로그인에 실패했습니다.");
     } finally {
@@ -31,11 +46,11 @@ export function LoginForm() {
 
   return (
     <div className="mx-auto mt-[60px] w-full max-w-[400px] px-6">
-      <h1 className="mb-6 text-center text-[22px] font-extrabold text-ink">로그인</h1>
+      <h1 className="mb-6 text-center text-[22px] font-extrabold text-ink">관리자 로그인</h1>
       <div className="flex flex-col gap-2.5">
         <Input
           type="email"
-          placeholder="이메일"
+          placeholder="관리자 이메일"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
@@ -56,12 +71,6 @@ export function LoginForm() {
       >
         로그인
       </Button>
-      <p className="mt-4 text-center text-[13px] text-text-secondary">
-        계정이 없으신가요?{" "}
-        <Link href="/signup" className="font-bold text-ink-strong">
-          회원가입
-        </Link>
-      </p>
     </div>
   );
 }

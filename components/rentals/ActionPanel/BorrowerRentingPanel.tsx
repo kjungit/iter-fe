@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/Button";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
 import { formatDisplayDate } from "@/lib/format";
 import { useConfirm } from "@/lib/store/confirm-modal-context";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 import type { Rental } from "@/lib/types";
 
 export function BorrowerRentingPanel({ rental }: { rental: Rental }) {
-  const { requestReturn } = useMockData();
+  const { requestReturn } = useAppData();
   const confirm = useConfirm();
 
   const handleRequestReturn = async () => {

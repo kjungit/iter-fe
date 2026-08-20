@@ -12,12 +12,12 @@ import {
   memberStatusBadge,
   reportStatusBadge,
 } from "@/lib/status";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useAppData } from "@/lib/store/app-data-context";
 
 export function AdminListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { adminMembers, equipment, reports, disputes, adminHistory } = useMockData();
+  const { adminMembers, equipment, reports, disputes, adminHistory } = useAppData();
 
   const requestedTab = searchParams.get("tab") as AdminTabKey | null;
   const tab: AdminTabKey = ADMIN_TABS.some((item) => item.value === requestedTab)
