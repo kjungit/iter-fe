@@ -25,53 +25,12 @@ export interface Equipment {
   reportCount: number;
 }
 
-export type RentalStatus =
-  | "PENDING"
-  | "PAID"
-  | "SHIPPING"
-  | "RENTING"
-  | "RETURN_UPLOAD"
-  | "RETURN_REQUESTED"
-  | "COMPLETED"
-  | "REJECTED";
-
-export interface EvidenceRecord {
-  photoUrls: string[];
-  condition: EquipmentCondition;
-  memo: string;
-  recordedAt: string;
-}
-
-export interface ShippingInfo {
-  carrier: string;
-  trackingNumber: string;
-}
-
 export interface ShippingAddress {
   recipientName: string;
   phone: string;
   zipcode: string;
   address: string;
   detailAddress: string;
-}
-
-export interface Rental {
-  id: string;
-  equipmentId: string;
-  borrowerId: string;
-  borrowerName: string;
-  ownerId: string;
-  ownerName: string;
-  status: RentalStatus;
-  startDate: string;
-  endDate: string;
-  totalPrice: number;
-  message: string;
-  shippingAddress: ShippingAddress;
-  shipping: ShippingInfo | null;
-  receiptEvidence: EvidenceRecord | null;
-  returnEvidence: EvidenceRecord | null;
-  createdAt: string;
 }
 
 export type ReportReason =

@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { Input } from "@/components/ui/Input";
@@ -11,8 +10,11 @@ import { Textarea } from "@/components/ui/Textarea";
 import { diffInDays, parseISODate } from "@/lib/date";
 import { formatCurrency, formatDateRange } from "@/lib/format";
 import { fetchEquipmentDetail } from "@/lib/api/equipment";
+import { createRental } from "@/lib/api/rentals";
+import { readyPayment } from "@/lib/api/payments";
+import { openTossCheckout } from "@/lib/toss";
+import { ApiError } from "@/lib/api/client";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
-import { useAppData } from "@/lib/store/app-data-context";
 import type { ShippingAddress } from "@/lib/types";
 
 const EMPTY_ADDRESS: ShippingAddress = {
@@ -30,9 +32,7 @@ interface RequestFormProps {
 }
 
 export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
-  const router = useRouter();
   const currentUser = useRequireAuth();
-  const { createRentalRequest } = useAppData();
   const { data: item, isLoading } = useQuery({
     queryKey: ["equipment", "detail", equipmentId],
     queryFn: () => fetchEquipmentDetail(equipmentId),
@@ -42,6 +42,36 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
     currentUser?.defaultAddress ?? EMPTY_ADDRESS,
   );
   const [message, setMessage] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const paymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!start || !end || !currentUser) throw new Error("잘못된 요청입니다.");
+      const { rentalId } = await createRental({
+        equipmentId,
+        startDate: start,
+        endDate: end,
+        receiverName: address.recipientName,
+        receiverPhone: address.phone,
+        zipcode: address.zipcode,
+        address: address.address,
+        detailAddress: address.detailAddress,
+        requestMessage: message,
+      });
+      const ready = await readyPayment(rentalId);
+      const origin = window.location.origin;
+      await openTossCheckout({
+        clientKey: ready.clientKey,
+        amount: ready.amount,
+        orderId: ready.orderId,
+        orderName: ready.orderName,
+        customerName: currentUser.name,
+        successUrl: `${origin}/rentals/${rentalId}/payment/success`,
+        failUrl: `${origin}/rentals/${rentalId}/payment/fail`,
+      });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "결제를 시작하지 못했습니다."),
+  });
 
   if (!currentUser) return null;
 
@@ -77,25 +107,6 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
     address.zipcode.trim().length > 0 &&
     address.address.trim().length > 0 &&
     address.detailAddress.trim().length > 0;
-
-  const handleSubmit = () => {
-    createRentalRequest({
-      equipmentId: item.id,
-      ownerId: item.owner.id,
-      ownerName: item.owner.nickname,
-      borrowerId: currentUser.id,
-      borrowerName: currentUser.name,
-      startDate: start,
-      endDate: end,
-      totalPrice,
-      message,
-      shippingAddress: address,
-      shipping: null,
-      receiptEvidence: null,
-      returnEvidence: null,
-    });
-    router.push("/rentals?tab=borrowed");
-  };
 
   return (
     <div className="mx-auto w-full max-w-[620px] px-6 pt-7 pb-24">
@@ -172,15 +183,21 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
         </div>
       </div>
 
+      {error && <p className="mt-3 text-[12.5px] text-badge-danger-fg">{error}</p>}
+
       <Button
         variant="primary"
         size="lg"
         fullWidth
         className="mt-7 rounded-md"
         disabled={!canSubmit}
-        onClick={handleSubmit}
+        loading={paymentMutation.isPending}
+        onClick={() => {
+          setError(null);
+          paymentMutation.mutate();
+        }}
       >
-        결제하기 (mock)
+        결제하기
       </Button>
     </div>
   );

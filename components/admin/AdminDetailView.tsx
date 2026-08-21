@@ -16,7 +16,7 @@ import {
   STATUS_OPTIONS,
   type AdminEntityKey,
 } from "@/lib/admin-config";
-import { formatCurrency, formatDateRange, formatDisplayDate } from "@/lib/format";
+import { formatCurrency, formatDisplayDate } from "@/lib/format";
 import {
   disputeStatusBadge,
   equipmentStatusBadge,
@@ -230,19 +230,14 @@ function buildDetailContent(
   store: ReturnType<typeof useAppData>,
   convertReportToDispute: () => void,
 ): DetailContent | null {
-  const { adminMembers, equipment, reports, disputes, rentals } = store;
+  const { adminMembers, equipment, reports, disputes } = store;
 
   if (entity === "users") {
     const member = adminMembers.find((candidate) => candidate.id === id);
     if (!member) return null;
-    const related = rentals
-      .filter((rental) => rental.ownerId === member.id || rental.borrowerId === member.id)
-      .slice(0, 5)
-      .map((rental) => ({
-        title: equipment.find((item) => item.id === rental.equipmentId)?.name ?? rental.equipmentId,
-        meta: formatDateRange(rental.startDate, rental.endDate),
-        badge: rental.status,
-      }));
+    // 대여 내역은 이제 실 API(lib/api/rentals.ts)에서만 조회 가능 — 관리자 화면이 실 API로
+    // 전환되기 전까지는(admin-integration 단계) 회원별 최근 거래 미리보기를 비워둔다.
+    const related: RelatedItem[] = [];
     return {
       title: member.name,
       subtitle: member.email,
@@ -266,13 +261,8 @@ function buildDetailContent(
   if (entity === "equipment") {
     const item = equipment.find((candidate) => candidate.id === id);
     if (!item) return null;
-    const related = rentals
-      .filter((rental) => rental.equipmentId === item.id)
-      .map((rental) => ({
-        title: `${rental.borrowerName} · ${formatDateRange(rental.startDate, rental.endDate)}`,
-        meta: `총 ${formatCurrency(rental.totalPrice)}`,
-        badge: rental.status,
-      }));
+    // 대여 내역은 실 API 전환 전까지 비워둔다 (위 users 분기와 동일한 이유).
+    const related: RelatedItem[] = [];
     return {
       title: item.name,
       subtitle: item.category,
@@ -283,7 +273,6 @@ function buildDetailContent(
         ["일 대여료", formatCurrency(item.pricePerDay)],
         ["장비 상태", item.condition],
         ["등록일", formatDisplayDate(item.createdAt)],
-        ["누적 대여", `${related.length}건`],
         ["신고 접수", `${item.reportCount}건`],
         ["평균 평점", item.ratingAverage.toFixed(1)],
       ],
@@ -296,15 +285,7 @@ function buildDetailContent(
   if (entity === "reports") {
     const report = reports.find((candidate) => candidate.id === id);
     if (!report) return null;
-    const rental = rentals.find((candidate) => candidate.id === report.rentalId);
     const related: RelatedItem[] = [];
-    if (rental) {
-      related.push({
-        title: report.equipmentName,
-        meta: formatDateRange(rental.startDate, rental.endDate),
-        badge: rental.status,
-      });
-    }
     reports
       .filter((other) => other.rentalId === report.rentalId && other.id !== report.id)
       .forEach((other) => related.push({ title: other.reason, meta: "동일 거래 신고", badge: other.status }));
@@ -337,15 +318,8 @@ function buildDetailContent(
   const dispute = disputes.find((candidate) => candidate.id === id);
   if (!dispute) return null;
   const report = reports.find((candidate) => candidate.id === dispute.reportId);
-  const rental = report ? rentals.find((candidate) => candidate.id === report.rentalId) : undefined;
   const related: RelatedItem[] = [];
   if (report) related.push({ title: report.reason, meta: "연관 신고", badge: report.status });
-  if (rental)
-    related.push({
-      title: dispute.equipmentName,
-      meta: formatDateRange(rental.startDate, rental.endDate),
-      badge: rental.status,
-    });
 
   return {
     title: dispute.reason,

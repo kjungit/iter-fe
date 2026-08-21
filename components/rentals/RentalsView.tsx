@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { RentalListItem } from "@/components/rentals/RentalListItem";
 import { Chip } from "@/components/ui/Chip";
 import { Tabs } from "@/components/ui/Tabs";
-import { isOverdue } from "@/lib/status";
+import { fetchBorrowedRentals, fetchLentRentals, fetchReturnTargets } from "@/lib/api/rentals";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
-import { useAppData } from "@/lib/store/app-data-context";
 
 type RentalTab = "borrowed" | "lent";
 
@@ -15,12 +15,27 @@ export function RentalsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentUser = useRequireAuth();
-  const { rentals } = useAppData();
-
-  if (!currentUser) return null;
 
   const tab: RentalTab = searchParams.get("tab") === "lent" ? "lent" : "borrowed";
   const overdueOnly = searchParams.get("overdue") === "1";
+
+  const { data: all } = useQuery({
+    queryKey: ["rentals", tab, "all"],
+    queryFn: () => (tab === "borrowed" ? fetchBorrowedRentals() : fetchLentRentals()),
+    enabled: !!currentUser,
+  });
+  const { data: overdue } = useQuery({
+    queryKey: ["rentals", tab, "overdue"],
+    queryFn: () => (tab === "borrowed" ? fetchBorrowedRentals(true) : fetchLentRentals(true)),
+    enabled: !!currentUser,
+  });
+  const { data: returnTargets } = useQuery({
+    queryKey: ["rentals", "returns"],
+    queryFn: fetchReturnTargets,
+    enabled: !!currentUser && tab === "lent",
+  });
+
+  if (!currentUser) return null;
 
   const updateParams = (next: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -32,15 +47,8 @@ export function RentalsView() {
     router.push(query ? `/rentals?${query}` : "/rentals");
   };
 
-  const scoped = rentals.filter((rental) =>
-    tab === "borrowed" ? rental.borrowerId === currentUser.id : rental.ownerId === currentUser.id,
-  );
-  const overdueCount = scoped.filter((rental) => isOverdue(rental)).length;
-  const visible = overdueOnly ? scoped.filter((rental) => isOverdue(rental)) : scoped;
-
-  const returnTargetCount = rentals.filter(
-    (rental) => rental.ownerId === currentUser.id && rental.status === "RETURN_REQUESTED",
-  ).length;
+  const visible = overdueOnly ? (overdue ?? []) : (all ?? []);
+  const isLoading = overdueOnly ? overdue === undefined : all === undefined;
 
   return (
     <div className="mx-auto w-full max-w-[900px] px-6 pt-7 pb-24">
@@ -62,22 +70,25 @@ export function RentalsView() {
             전체
           </Chip>
           <Chip size="sm" selected={overdueOnly} onClick={() => updateParams({ overdue: "1" })}>
-            연체 {overdueCount}건
+            연체 {overdue?.length ?? 0}건
           </Chip>
         </div>
-        {tab === "lent" && returnTargetCount > 0 && (
+        {tab === "lent" && (returnTargets?.length ?? 0) > 0 && (
           <Link href="/rentals/returns" className="text-[12.5px] font-bold text-ink-strong">
-            반납 확인 대상 {returnTargetCount}건 →
+            반납 확인 대상 {returnTargets?.length}건 →
           </Link>
         )}
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {visible.length === 0 && (
+        {isLoading && (
+          <p className="py-16 text-center text-[12.5px] text-text-secondary">불러오는 중...</p>
+        )}
+        {!isLoading && visible.length === 0 && (
           <p className="py-16 text-center text-[12.5px] text-text-secondary">대여 내역이 없습니다.</p>
         )}
-        {visible.map((rental) => (
-          <RentalListItem key={rental.id} rental={rental} perspective={tab} />
+        {visible.map((item) => (
+          <RentalListItem key={item.rentalId} item={item} perspective={tab} />
         ))}
       </div>
     </div>

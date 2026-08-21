@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ReportTypeRadioList } from "@/components/reports/ReportTypeRadioList";
 import { Button } from "@/components/ui/Button";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { PhotoUploadSlotGrid } from "@/components/ui/PhotoUploadSlot";
 import { Textarea } from "@/components/ui/Textarea";
 import { formatDateRange } from "@/lib/format";
+import { fetchRentalDetail } from "@/lib/api/rentals";
 import { useConfirm } from "@/lib/store/confirm-modal-context";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
 import { useAppData } from "@/lib/store/app-data-context";
@@ -17,15 +19,27 @@ import type { ReportReason } from "@/lib/types";
 export function ReportForm({ rentalId }: { rentalId: string }) {
   const router = useRouter();
   const currentUser = useRequireAuth();
-  const { rentals, equipment, submitReport } = useAppData();
+  const { submitReport } = useAppData();
   const confirm = useConfirm();
 
-  const rental = rentals.find((candidate) => candidate.id === rentalId);
+  const { data: rental, isLoading } = useQuery({
+    queryKey: ["rental", "detail", rentalId],
+    queryFn: () => fetchRentalDetail(rentalId),
+    enabled: !!currentUser,
+  });
   const [reason, setReason] = useState<ReportReason>("장비 파손 / 상태 불일치");
   const [detail, setDetail] = useState("");
   const [photoCount, setPhotoCount] = useState(0);
 
   if (!currentUser) return null;
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-[560px] px-6 py-16 text-center text-[13px] text-text-secondary">
+        불러오는 중...
+      </div>
+    );
+  }
 
   if (!rental) {
     return (
@@ -38,24 +52,24 @@ export function ReportForm({ rentalId }: { rentalId: string }) {
     );
   }
 
-  const item = equipment.find((candidate) => candidate.id === rental.equipmentId);
-  const reportedUserId = rental.ownerId === currentUser.id ? rental.borrowerId : rental.ownerId;
-  const reportedUserName = rental.ownerId === currentUser.id ? rental.borrowerName : rental.ownerName;
+  const isOwner = rental.owner.id === currentUser.id;
+  const reportedUserId = isOwner ? rental.renter.id : rental.owner.id;
+  const reportedUserName = isOwner ? rental.renter.nickname : rental.owner.nickname;
 
   const handleSubmit = async () => {
     if (!detail.trim()) return;
     if (!(await confirm({ message: "신고를 접수하시겠어요?" }))) return;
 
     submitReport({
-      rentalId: rental.id,
+      rentalId: rental.rentalId,
       reporterId: currentUser.id,
       reporterName: currentUser.name,
       reportedUserId,
       reportedUserName,
-      equipmentName: item?.name ?? "삭제된 장비",
+      equipmentName: rental.equipment.equipmentName,
       reason,
       detail,
-      photoUrls: Array.from({ length: photoCount }, (_, i) => `report-${rental.id}-${i}`),
+      photoUrls: Array.from({ length: photoCount }, (_, i) => `report-${rental.rentalId}-${i}`),
       disputeEligible: false,
     });
     router.push("/reports");
@@ -63,7 +77,7 @@ export function ReportForm({ rentalId }: { rentalId: string }) {
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-6 pt-7 pb-24">
-      <Link href={`/rentals/${rental.id}`} className="text-[13px] font-semibold text-text-secondary">
+      <Link href={`/rentals/${rental.rentalId}`} className="text-[13px] font-semibold text-text-secondary">
         ← 돌아가기
       </Link>
       <h1 className="mt-2 text-[20px] font-extrabold text-ink">신고 접수</h1>
@@ -73,10 +87,10 @@ export function ReportForm({ rentalId }: { rentalId: string }) {
 
       <div className="flex gap-3 rounded-md border border-border p-3.5">
         <div className="h-12 w-12 shrink-0">
-          <ImagePlaceholder rounded="rounded-sm" />
+          <ImagePlaceholder rounded="rounded-sm" src={rental.equipment.thumbnailUrl} alt={rental.equipment.equipmentName} />
         </div>
         <div>
-          <div className="text-[13.5px] font-bold text-ink">{item?.name ?? "삭제된 장비"}</div>
+          <div className="text-[13.5px] font-bold text-ink">{rental.equipment.equipmentName}</div>
           <div className="mt-0.5 text-[12px] text-text-secondary">
             {formatDateRange(rental.startDate, rental.endDate)}
           </div>

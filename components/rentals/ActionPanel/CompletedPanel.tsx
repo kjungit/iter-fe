@@ -1,8 +1,8 @@
 import { LinkButton } from "@/components/ui/Button";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
-import type { Rental } from "@/lib/types";
+import type { RentalDetail } from "@/lib/api/rentals";
 
-export function CompletedPanel({ rental }: { rental: Rental }) {
+export function CompletedPanel({ rental }: { rental: RentalDetail }) {
   return (
     <PanelShell>
       <div className="text-center">
@@ -11,7 +11,7 @@ export function CompletedPanel({ rental }: { rental: Rental }) {
           경험은 어떠셨나요? 리뷰를 남겨 다른 사용자에게 도움을 주세요.
         </p>
         <LinkButton
-          href={`/rentals/${rental.id}/review`}
+          href={`/rentals/${rental.rentalId}/review`}
           variant="primary"
           size="sm"
           className="mt-4"

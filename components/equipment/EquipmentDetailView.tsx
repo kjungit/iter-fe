@@ -10,13 +10,13 @@ import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { DateRangeCalendar } from "@/components/equipment/DateRangeCalendar";
 import { diffInDays, parseISODate, type DateRange } from "@/lib/date";
 import { formatCurrency } from "@/lib/format";
-import { getBookedDates, isEquipmentRented } from "@/lib/mock-data";
 import {
+  AVAILABILITY_REASON_LABELS,
   EQUIPMENT_CATEGORY_LABELS,
   PRODUCT_CONDITION_LABELS,
+  fetchEquipmentAvailability,
   fetchEquipmentDetail,
 } from "@/lib/api/equipment";
-import { useAppData } from "@/lib/store/app-data-context";
 
 interface EquipmentDetailViewProps {
   equipmentId: string;
@@ -24,12 +24,17 @@ interface EquipmentDetailViewProps {
 
 export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
   const router = useRouter();
-  const { rentals } = useAppData();
   const [range, setRange] = useState<DateRange>({ start: null, end: null });
 
   const { data: item, isLoading, isError } = useQuery({
     queryKey: ["equipment", "detail", equipmentId],
     queryFn: () => fetchEquipmentDetail(equipmentId),
+  });
+
+  const { data: availability, isFetching: isCheckingAvailability } = useQuery({
+    queryKey: ["equipment", "availability", equipmentId, range.start, range.end],
+    queryFn: () => fetchEquipmentAvailability(equipmentId, range.start!, range.end!),
+    enabled: !!range.start && !!range.end,
   });
 
   if (isLoading) {
@@ -51,15 +56,14 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
     );
   }
 
-  const rented = isEquipmentRented(item.id, rentals);
-  const bookedDates = getBookedDates(item.id, rentals);
   const days =
     range.start && range.end ? diffInDays(parseISODate(range.end), parseISODate(range.start)) + 1 : 0;
   const totalPrice = days * item.dailyPrice;
   const thumbnails = item.images.slice(0, 4);
+  const unavailable = !!range.start && !!range.end && availability !== undefined && !availability.available;
 
   const handleRequest = () => {
-    if (!range.start || !range.end) return;
+    if (!range.start || !range.end || unavailable) return;
     router.push(`/equipment/${item.id}/request?start=${range.start}&end=${range.end}`);
   };
 
@@ -110,7 +114,7 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
             <span className="ml-1 text-[14px] font-semibold text-text-secondary">/ 일</span>
           </div>
 
-          <DateRangeCalendar value={range} onChange={setRange} disabledDates={bookedDates} />
+          <DateRangeCalendar value={range} onChange={setRange} />
 
           {days > 0 && (
             <div className="mt-3.5 flex justify-between rounded-md bg-surface px-4 py-[14px]">
@@ -119,15 +123,21 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
             </div>
           )}
 
+          {unavailable && availability?.reason && (
+            <p className="mt-3 text-[12.5px] text-badge-danger-fg">
+              {AVAILABILITY_REASON_LABELS[availability.reason]}
+            </p>
+          )}
+
           <Button
             variant="primary"
             size="lg"
             fullWidth
             className="mt-4 rounded-md"
-            disabled={rented || days === 0}
+            disabled={days === 0 || unavailable || isCheckingAvailability}
             onClick={handleRequest}
           >
-            {rented ? "현재 대여중인 장비입니다" : "대여 요청하기"}
+            대여 요청하기
           </Button>
 
           <div className="mt-7">
@@ -136,8 +146,6 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
               수령·반납 시점의 사진과 상태는 자동으로 기록되어 분쟁 발생 시 근거로 사용됩니다.
               <br />
               반납 전에는 반드시 장비 상태를 등록해야 반납 신청이 완료됩니다.
-              <br />
-              결제는 데모 화면으로, 실제 결제가 이루어지지 않습니다.
             </p>
           </div>
         </div>

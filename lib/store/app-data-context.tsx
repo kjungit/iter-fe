@@ -21,7 +21,6 @@ import {
   ADMIN_MEMBERS,
   DISPUTES,
   EQUIPMENT,
-  RENTALS,
   REPORTS,
 } from "@/lib/mock-data";
 import type {
@@ -30,13 +29,10 @@ import type {
   Dispute,
   DisputeStatus,
   Equipment,
-  EquipmentCondition,
   EquipmentStatus,
   MemberStatus,
-  Rental,
   Report,
   ReportStatus,
-  ShippingInfo,
   User,
 } from "@/lib/types";
 
@@ -48,21 +44,13 @@ export interface Review {
   createdAt: string;
 }
 
-interface Evidence {
-  photoUrls: string[];
-  condition: EquipmentCondition;
-  memo: string;
-}
-
 export type AdminEntity = "member" | "equipment" | "report" | "dispute";
 
-type NewRentalRequest = Omit<Rental, "id" | "status" | "createdAt">;
 type NewReport = Omit<Report, "id" | "createdAt" | "status" | "progress">;
 type NewReview = Omit<Review, "id" | "createdAt">;
 
 interface AppDataState {
   equipment: Equipment[];
-  rentals: Rental[];
   reports: Report[];
   disputes: Dispute[];
   adminMembers: AdminMember[];
@@ -74,7 +62,6 @@ interface AppDataState {
 
 const initialState: AppDataState = {
   equipment: EQUIPMENT,
-  rentals: RENTALS,
   reports: REPORTS,
   disputes: DISPUTES,
   adminMembers: ADMIN_MEMBERS,
@@ -84,14 +71,6 @@ const initialState: AppDataState = {
 };
 
 type Action =
-  | { type: "approveRental"; rentalId: string }
-  | { type: "rejectRental"; rentalId: string }
-  | { type: "registerShipping"; rentalId: string; shipping: ShippingInfo }
-  | { type: "confirmReceipt"; rentalId: string; evidence: Evidence }
-  | { type: "requestReturn"; rentalId: string }
-  | { type: "submitReturnEvidence"; rentalId: string; evidence: Evidence }
-  | { type: "finalizeReturn"; rentalId: string }
-  | { type: "createRentalRequest"; input: NewRentalRequest }
   | { type: "submitReport"; input: NewReport }
   | { type: "fileDispute"; reportId: string }
   | {
@@ -106,17 +85,6 @@ type Action =
 
 function todayIso(): string {
   return toISODate(new Date());
-}
-
-function updateRental(
-  state: AppDataState,
-  rentalId: string,
-  updater: (rental: Rental) => Rental,
-): AppDataState {
-  return {
-    ...state,
-    rentals: state.rentals.map((rental) => (rental.id === rentalId ? updater(rental) : rental)),
-  };
 }
 
 function adminEntityLabel(state: AppDataState, entity: AdminEntity, id: string): string {
@@ -134,55 +102,6 @@ function adminEntityLabel(state: AppDataState, entity: AdminEntity, id: string):
 
 function reducer(state: AppDataState, action: Action): AppDataState {
   switch (action.type) {
-    case "approveRental":
-      return updateRental(state, action.rentalId, (rental) => ({ ...rental, status: "PAID" }));
-
-    case "rejectRental":
-      return updateRental(state, action.rentalId, (rental) => ({ ...rental, status: "REJECTED" }));
-
-    case "registerShipping":
-      return updateRental(state, action.rentalId, (rental) => ({
-        ...rental,
-        status: "SHIPPING",
-        shipping: action.shipping,
-      }));
-
-    case "confirmReceipt":
-      return updateRental(state, action.rentalId, (rental) => ({
-        ...rental,
-        status: "RENTING",
-        receiptEvidence: { ...action.evidence, recordedAt: todayIso() },
-      }));
-
-    case "requestReturn":
-      return updateRental(state, action.rentalId, (rental) => ({
-        ...rental,
-        status: "RETURN_UPLOAD",
-      }));
-
-    case "submitReturnEvidence":
-      return updateRental(state, action.rentalId, (rental) => ({
-        ...rental,
-        status: "RETURN_REQUESTED",
-        returnEvidence: { ...action.evidence, recordedAt: todayIso() },
-      }));
-
-    case "finalizeReturn":
-      return updateRental(state, action.rentalId, (rental) => ({
-        ...rental,
-        status: "COMPLETED",
-      }));
-
-    case "createRentalRequest": {
-      const rental: Rental = {
-        ...action.input,
-        id: `r-${state.sequence}`,
-        status: "PENDING",
-        createdAt: todayIso(),
-      };
-      return { ...state, rentals: [rental, ...state.rentals], sequence: state.sequence + 1 };
-    }
-
     case "submitReport": {
       const today = todayIso();
       const report: Report = {
@@ -277,14 +196,6 @@ interface AppDataContextValue extends AppDataState {
   login: (email: string, password: string) => Promise<void>;
   signup: (input: SignUpInput) => Promise<void>;
   logout: () => Promise<void>;
-  approveRental: (rentalId: string) => void;
-  rejectRental: (rentalId: string) => void;
-  registerShipping: (rentalId: string, shipping: ShippingInfo) => void;
-  confirmReceipt: (rentalId: string, evidence: Evidence) => void;
-  requestReturn: (rentalId: string) => void;
-  submitReturnEvidence: (rentalId: string, evidence: Evidence) => void;
-  finalizeReturn: (rentalId: string) => void;
-  createRentalRequest: (input: NewRentalRequest) => void;
   submitReport: (input: NewReport) => void;
   fileDispute: (reportId: string) => void;
   updateAdminStatus: (entity: AdminEntity, id: string, status: string, memo: string) => void;
@@ -334,17 +245,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       login: (email, password) => loginMutation.mutateAsync({ email, password }),
       signup: (input) => signupMutation.mutateAsync(input),
       logout: () => logoutMutation.mutateAsync(),
-      approveRental: (rentalId) => dispatch({ type: "approveRental", rentalId }),
-      rejectRental: (rentalId) => dispatch({ type: "rejectRental", rentalId }),
-      registerShipping: (rentalId, shipping) =>
-        dispatch({ type: "registerShipping", rentalId, shipping }),
-      confirmReceipt: (rentalId, evidence) =>
-        dispatch({ type: "confirmReceipt", rentalId, evidence }),
-      requestReturn: (rentalId) => dispatch({ type: "requestReturn", rentalId }),
-      submitReturnEvidence: (rentalId, evidence) =>
-        dispatch({ type: "submitReturnEvidence", rentalId, evidence }),
-      finalizeReturn: (rentalId) => dispatch({ type: "finalizeReturn", rentalId }),
-      createRentalRequest: (input) => dispatch({ type: "createRentalRequest", input }),
       submitReport: (input) => dispatch({ type: "submitReport", input }),
       fileDispute: (reportId) => dispatch({ type: "fileDispute", reportId }),
       updateAdminStatus: (entity, id, status, memo) =>

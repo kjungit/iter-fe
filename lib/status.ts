@@ -1,12 +1,5 @@
-import { diffInDays, parseISODate, startOfDay } from "@/lib/date";
-import type {
-  DisputeStatus,
-  EquipmentStatus,
-  MemberStatus,
-  Rental,
-  RentalStatus,
-  ReportStatus,
-} from "@/lib/types";
+import type { RentalStatus } from "@/lib/api/rentals";
+import type { DisputeStatus, EquipmentStatus, MemberStatus, ReportStatus } from "@/lib/types";
 
 export type BadgePalette =
   | "neutral"
@@ -22,14 +15,18 @@ export interface BadgeInfo {
 }
 
 const RENTAL_STATUS_BADGE: Record<RentalStatus, BadgeInfo> = {
-  PENDING: { label: "요청대기", palette: "neutral" },
-  PAID: { label: "결제완료", palette: "progress" },
+  PENDING: { label: "결제대기", palette: "neutral" },
+  REQUESTED: { label: "승인대기", palette: "progress" },
+  APPROVED: { label: "배송대기", palette: "progress" },
+  REJECTED: { label: "거절됨", palette: "danger" },
+  CANCELED: { label: "취소됨", palette: "danger" },
   SHIPPING: { label: "배송중", palette: "progress" },
   RENTING: { label: "대여중", palette: "success" },
-  RETURN_UPLOAD: { label: "반납 준비중", palette: "warning" },
-  RETURN_REQUESTED: { label: "반납확인중", palette: "warning" },
+  RETURN_REQUESTED: { label: "반납대기", palette: "warning" },
+  RETURNING: { label: "반납중", palette: "warning" },
+  RETURNED: { label: "반납확인중", palette: "warning" },
+  DISPUTED: { label: "분쟁중", palette: "danger" },
   COMPLETED: { label: "완료", palette: "done" },
-  REJECTED: { label: "거절됨", palette: "danger" },
 };
 
 const REPORT_STATUS_BADGE: Record<ReportStatus, BadgeInfo> = {
@@ -79,40 +76,49 @@ export function equipmentStatusBadge(status: EquipmentStatus): BadgeInfo {
 
 export const RENTAL_TIMELINE_LABELS = [
   "요청",
-  "승인·결제",
+  "결제완료",
+  "승인",
   "배송",
-  "수령확인",
-  "대여중~반납",
+  "대여중",
+  "반납신청",
+  "반납확인",
   "완료",
 ] as const;
 
-/** Highest reached timeline stage index (0-5), or -1 when nothing is reached (REJECTED). */
+/**
+ * Highest reached timeline stage index (0-7), or -1 when nothing is reached (분기 상태).
+ * RETURNING은 RETURN_REQUESTED와 같은 단계로 취급 — 반납 증빙 제출 한 번에 곧바로 RETURNED로
+ * 넘어가서(RentalFulfillmentService 참고) 화면에 별도 단계로 노출하지 않는다.
+ */
 export function rentalTimelineStage(status: RentalStatus): number {
   switch (status) {
     case "PENDING":
       return 0;
-    case "PAID":
+    case "REQUESTED":
       return 1;
-    case "SHIPPING":
+    case "APPROVED":
       return 2;
-    case "RENTING":
-    case "RETURN_UPLOAD":
+    case "SHIPPING":
       return 3;
-    case "RETURN_REQUESTED":
+    case "RENTING":
       return 4;
-    case "COMPLETED":
+    case "RETURN_REQUESTED":
+    case "RETURNING":
       return 5;
+    case "RETURNED":
+      return 6;
+    case "COMPLETED":
+      return 7;
     case "REJECTED":
+    case "CANCELED":
+    case "DISPUTED":
       return -1;
   }
 }
 
 export type TimelineNodeState = "reached" | "unreached";
 
-export function timelineDotState(
-  status: RentalStatus,
-  stepIndex: number,
-): TimelineNodeState {
+export function timelineDotState(status: RentalStatus, stepIndex: number): TimelineNodeState {
   const stage = rentalTimelineStage(status);
   if (stage === -1) return "unreached";
   return stepIndex <= stage ? "reached" : "unreached";
@@ -128,31 +134,14 @@ export function timelineConnectorState(
   return timelineDotState(status, stepIndex);
 }
 
-const NON_OVERDUE_STATUSES: RentalStatus[] = ["COMPLETED", "REJECTED", "PENDING"];
-
-export function isOverdue(
-  rental: Pick<Rental, "status" | "endDate">,
-  today: Date = new Date(),
-): boolean {
-  if (NON_OVERDUE_STATUSES.includes(rental.status)) return false;
-  return startOfDay(parseISODate(rental.endDate)) < startOfDay(today);
-}
-
 export type RentalRole = "owner" | "borrower" | null;
 
+/** overdueDays는 BE(RentalDetailResponse/RentalHistoryResponse)가 이미 계산해서 내려주므로 재계산하지 않는다. */
 export function rentalRole(
-  rental: Pick<Rental, "ownerId" | "borrowerId">,
+  rental: { owner: { id: string }; renter: { id: string } },
   userId: string,
 ): RentalRole {
-  if (rental.ownerId === userId) return "owner";
-  if (rental.borrowerId === userId) return "borrower";
+  if (rental.owner.id === userId) return "owner";
+  if (rental.renter.id === userId) return "borrower";
   return null;
-}
-
-export function overdueDays(
-  rental: Pick<Rental, "status" | "endDate">,
-  today: Date = new Date(),
-): number {
-  if (!isOverdue(rental, today)) return 0;
-  return diffInDays(today, parseISODate(rental.endDate));
 }

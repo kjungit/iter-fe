@@ -179,6 +179,29 @@ export async function fetchEquipmentDetail(equipmentId: string): Promise<Equipme
   return toDetail(dto);
 }
 
+export type AvailabilityReason = "OUT_OF_AVAILABLE_PERIOD" | "RESERVATION_CONFLICT";
+
+export const AVAILABILITY_REASON_LABELS: Record<AvailabilityReason, string> = {
+  OUT_OF_AVAILABLE_PERIOD: "장비 등록자가 설정한 대여 가능 기간을 벗어났습니다.",
+  RESERVATION_CONFLICT: "선택한 기간에 이미 다른 예약이 있습니다.",
+};
+
+export interface EquipmentAvailability {
+  available: boolean;
+  reason: AvailabilityReason | null;
+}
+
+export async function fetchEquipmentAvailability(
+  equipmentId: string,
+  startDate: string,
+  endDate: string,
+): Promise<EquipmentAvailability> {
+  const dto = await apiFetch<{ available: boolean; reason: AvailabilityReason | null }>(
+    `/api/v1/devices/${equipmentId}/availability?startDate=${startDate}&endDate=${endDate}`,
+  );
+  return dto;
+}
+
 export interface EquipmentCreateInput {
   category: EquipmentCategory;
   name: string;

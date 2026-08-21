@@ -3,18 +3,31 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { StarRating } from "@/components/ui/StarRating";
 import { Textarea } from "@/components/ui/Textarea";
+import { fetchRentalDetail } from "@/lib/api/rentals";
 import { useAppData } from "@/lib/store/app-data-context";
 
 export function ReviewForm({ rentalId }: { rentalId: string }) {
   const router = useRouter();
-  const { rentals, submitReview } = useAppData();
-  const rental = rentals.find((candidate) => candidate.id === rentalId);
+  const { submitReview } = useAppData();
+  const { data: rental, isLoading } = useQuery({
+    queryKey: ["rental", "detail", rentalId],
+    queryFn: () => fetchRentalDetail(rentalId),
+  });
 
   const [rating, setRating] = useState(5);
   const [text, setText] = useState("");
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-[520px] px-6 py-16 text-center text-[13px] text-text-secondary">
+        불러오는 중...
+      </div>
+    );
+  }
 
   if (!rental) {
     return (
@@ -28,7 +41,7 @@ export function ReviewForm({ rentalId }: { rentalId: string }) {
   }
 
   const handleSubmit = () => {
-    submitReview({ rentalId: rental.id, rating, text });
+    submitReview({ rentalId: rental.rentalId, rating, text });
     setRating(5);
     setText("");
     router.push("/rentals");

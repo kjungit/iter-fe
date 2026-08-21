@@ -5,14 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { CategoryChips } from "@/components/equipment/CategoryChips";
 import { EquipmentGrid } from "@/components/equipment/EquipmentGrid";
 import { fetchEquipmentList, type EquipmentCategory } from "@/lib/api/equipment";
-import { useAppData } from "@/lib/store/app-data-context";
 
 const ALL = "전체";
 
 export function HomeView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { rentals } = useAppData();
 
   const category = (searchParams.get("category") as EquipmentCategory | null) ?? ALL;
 
@@ -54,7 +52,7 @@ export function HomeView() {
           장비 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
         </p>
       )}
-      {data && <EquipmentGrid equipment={data.content} rentals={rentals} />}
+      {data && <EquipmentGrid equipment={data.content} />}
     </div>
   );
 }
