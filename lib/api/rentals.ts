@@ -297,3 +297,24 @@ export async function confirmReturn(
   );
   return { status: dto.status, disputeId: dto.disputeId ? String(dto.disputeId) : null };
 }
+
+// ── 수령/반납 증빙 사진 업로드 (presigned URL) ──────────────────────────────
+// 장비 이미지와 달리 승격(promote) 단계가 없어 발급 즉시 publicUrl이 최종 URL이다.
+
+export interface EvidencePresignedUpload {
+  objectKey: string;
+  uploadUrl: string;
+  requiredHeaders: Record<string, string>;
+  publicUrl: string;
+  expiresAt: string;
+}
+
+export async function requestEvidenceImagePresignedUrls(
+  files: { contentType: string }[],
+): Promise<EvidencePresignedUpload[]> {
+  const dto = await apiFetch<{ uploads: EvidencePresignedUpload[] }>(
+    "/api/v1/rentals/images/presigned-urls",
+    { method: "POST", body: { files } },
+  );
+  return dto.uploads;
+}

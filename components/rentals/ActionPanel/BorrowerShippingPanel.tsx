@@ -8,9 +8,10 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
 import { PRODUCT_CONDITIONS, PRODUCT_CONDITION_LABELS, type ProductCondition } from "@/lib/api/equipment";
-import { uploadFile } from "@/lib/api/files";
+import { putToPresignedUrl } from "@/lib/api/s3-upload";
+import { compressImage } from "@/lib/image-compress";
 import { ApiError } from "@/lib/api/client";
-import { createReceipt } from "@/lib/api/rentals";
+import { createReceipt, requestEvidenceImagePresignedUrls } from "@/lib/api/rentals";
 import type { RentalDetail } from "@/lib/api/rentals";
 
 const PHOTO_SLOT_COUNT = 4;
@@ -49,13 +50,16 @@ export function BorrowerShippingPanel({ rental }: { rental: RentalDetail }) {
     event.target.value = "";
     if (!file || activeSlot === null) return;
 
-    setUploadingIndex(activeSlot);
+    const slotIndex = activeSlot;
+    setUploadingIndex(slotIndex);
     setError(null);
     try {
-      const url = await uploadFile(file);
+      const compressed = await compressImage(file);
+      const [upload] = await requestEvidenceImagePresignedUrls([{ contentType: compressed.type }]);
+      await putToPresignedUrl(upload.uploadUrl, compressed, upload.requiredHeaders);
       setPhotos((prev) => {
         const next = [...prev];
-        next[activeSlot] = url;
+        next[slotIndex] = upload.publicUrl;
         return next;
       });
     } catch (err) {

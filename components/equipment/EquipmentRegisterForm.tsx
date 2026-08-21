@@ -15,15 +15,22 @@ import {
   PRODUCT_CONDITIONS,
   PRODUCT_CONDITION_LABELS,
   createEquipment,
+  requestEquipmentImagePresignedUrls,
   type EquipmentCategory,
   type ProductCondition,
 } from "@/lib/api/equipment";
-import { uploadFile } from "@/lib/api/files";
+import { putToPresignedUrl } from "@/lib/api/s3-upload";
+import { compressImage } from "@/lib/image-compress";
 import { ApiError } from "@/lib/api/client";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
 import { toISODate } from "@/lib/date";
 
 const PHOTO_SLOT_COUNT = 4;
+
+interface PhotoSlot {
+  previewUrl: string;
+  objectKey: string;
+}
 
 function defaultAvailableTo(): string {
   const date = new Date();
@@ -40,9 +47,10 @@ export function EquipmentRegisterForm() {
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [condition, setCondition] = useState<ProductCondition>("NORMAL");
+  const [conditionDetail, setConditionDetail] = useState("");
   const [availableFrom, setAvailableFrom] = useState(() => toISODate(new Date()));
   const [availableTo, setAvailableTo] = useState(defaultAvailableTo);
-  const [photos, setPhotos] = useState<(string | null)[]>(Array(PHOTO_SLOT_COUNT).fill(null));
+  const [photos, setPhotos] = useState<(PhotoSlot | null)[]>(Array(PHOTO_SLOT_COUNT).fill(null));
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,13 +64,14 @@ export function EquipmentRegisterForm() {
 
   if (!currentUser) return null;
 
-  const photoUrls = photos.filter((url): url is string => url !== null);
+  const filledPhotos = photos.filter((slot): slot is PhotoSlot => slot !== null);
   const canSubmit =
     name.trim().length > 0 &&
     Number(price) > 0 &&
     description.trim().length > 0 &&
-    photoUrls.length > 0 &&
-    availableFrom <= availableTo;
+    filledPhotos.length > 0 &&
+    availableFrom <= availableTo &&
+    (condition === "NORMAL" || conditionDetail.trim().length > 0);
 
   const openFilePicker = (index: number) => {
     setActiveSlot(index);
@@ -74,13 +83,21 @@ export function EquipmentRegisterForm() {
     event.target.value = "";
     if (!file || activeSlot === null) return;
 
-    setUploadingIndex(activeSlot);
+    const slotIndex = activeSlot;
+    setUploadingIndex(slotIndex);
     setError(null);
     try {
-      const url = await uploadFile(file);
+      const compressed = await compressImage(file);
+      const previewUrl = URL.createObjectURL(compressed);
+
+      const [upload] = await requestEquipmentImagePresignedUrls([
+        { fileName: compressed.name, contentType: compressed.type, size: compressed.size },
+      ]);
+      await putToPresignedUrl(upload.uploadUrl, compressed, upload.requiredHeaders);
+
       setPhotos((prev) => {
         const next = [...prev];
-        next[activeSlot] = url;
+        next[slotIndex] = { previewUrl, objectKey: upload.objectKey };
         return next;
       });
     } catch (err) {
@@ -101,7 +118,9 @@ export function EquipmentRegisterForm() {
       availableFrom,
       availableTo,
       productCondition: condition,
-      imageUrls: photoUrls,
+      conditionDetail: condition === "NORMAL" ? undefined : conditionDetail,
+      imageKeys: filledPhotos.map((slot) => slot.objectKey),
+      thumbnailIndex: 0,
     });
   };
 
@@ -146,6 +165,13 @@ export function EquipmentRegisterForm() {
             </option>
           ))}
         </Select>
+        {condition !== "NORMAL" && (
+          <Input
+            placeholder="상품 상태 상세 (예: 좌측 상단 스크래치)"
+            value={conditionDetail}
+            onChange={(event) => setConditionDetail(event.target.value)}
+          />
+        )}
         <div className="flex gap-2.5">
           <Input
             type="date"
@@ -162,12 +188,14 @@ export function EquipmentRegisterForm() {
         </div>
       </div>
 
-      <h2 className="mt-6 mb-2.5 text-[14px] font-bold text-ink">장비 사진</h2>
+      <h2 className="mt-6 mb-2.5 text-[14px] font-bold text-ink">
+        장비 사진 <span className="font-normal text-text-tertiary">(첫 장이 대표 이미지로 등록돼요)</span>
+      </h2>
       <div className="grid grid-cols-4 gap-2">
-        {photos.map((url, index) => (
+        {photos.map((slot, index) => (
           <PhotoUploadSlot
             key={index}
-            src={url}
+            src={slot?.previewUrl}
             loading={uploadingIndex === index}
             onClick={() => openFilePicker(index)}
           />

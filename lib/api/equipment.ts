@@ -76,6 +76,7 @@ export interface EquipmentImage {
   thumbnail: boolean;
 }
 
+/** 장비 상세의 소유자 필드 — {id, nickname}. 대여 쪽 UserSummary({userId,nickName})와 모양이 다르니 섞지 말 것. */
 export interface EquipmentOwner {
   id: string;
   nickname: string;
@@ -196,10 +197,30 @@ export async function fetchEquipmentAvailability(
   startDate: string,
   endDate: string,
 ): Promise<EquipmentAvailability> {
-  const dto = await apiFetch<{ available: boolean; reason: AvailabilityReason | null }>(
+  return apiFetch<EquipmentAvailability>(
     `/api/v1/devices/${equipmentId}/availability?startDate=${startDate}&endDate=${endDate}`,
   );
-  return dto;
+}
+
+// ── 이미지 업로드 (presigned URL) ──────────────────────────────────────────
+// 순서: 1) presigned URL 발급  2) 반환받은 uploadUrl로 S3에 직접 PUT
+// 3) objectKey들을 장비 등록 요청에 imageKeys로 전달 (imageUrl 문자열이 아니라 objectKey!)
+
+export interface PresignedImageUpload {
+  objectKey: string;
+  uploadUrl: string;
+  requiredHeaders: Record<string, string>;
+  expiresAt: string;
+}
+
+export async function requestEquipmentImagePresignedUrls(
+  files: { fileName: string; contentType: string; size: number }[],
+): Promise<PresignedImageUpload[]> {
+  const dto = await apiFetch<{ uploads: PresignedImageUpload[] }>(
+    "/api/v1/devices/images/presigned-urls",
+    { method: "POST", body: { files } },
+  );
+  return dto.uploads;
 }
 
 export interface EquipmentCreateInput {
@@ -211,13 +232,74 @@ export interface EquipmentCreateInput {
   availableTo: string;
   productCondition: ProductCondition;
   conditionDetail?: string;
-  imageUrls: string[];
+  /** presigned URL 업로드로 받은 objectKey 목록 (imageUrl이 아님) */
+  imageKeys: string[];
+  thumbnailIndex: number;
 }
 
-export async function createEquipment(input: EquipmentCreateInput): Promise<{ equipmentId: string }> {
-  const dto = await apiFetch<{ equipmentId: number }>("/api/v1/devices", {
+export async function createEquipment(input: EquipmentCreateInput): Promise<EquipmentDetail> {
+  const dto = await apiFetch<EquipmentDetailDto>("/api/v1/devices", {
     method: "POST",
     body: input,
   });
-  return { equipmentId: String(dto.equipmentId) };
+  return toDetail(dto);
+}
+
+export interface EquipmentUpdateInput {
+  name?: string;
+  description?: string;
+  dailyPrice?: number;
+  availableFrom?: string;
+  availableTo?: string;
+  productCondition?: ProductCondition;
+  conditionDetail?: string;
+}
+
+export async function updateEquipment(
+  equipmentId: string,
+  input: EquipmentUpdateInput,
+): Promise<EquipmentDetail> {
+  const dto = await apiFetch<EquipmentDetailDto>(`/api/v1/devices/${equipmentId}`, {
+    method: "PATCH",
+    body: input,
+  });
+  return toDetail(dto);
+}
+
+export async function deleteEquipment(equipmentId: string): Promise<void> {
+  await apiFetch<void>(`/api/v1/devices/${equipmentId}`, { method: "DELETE" });
+}
+
+/** 등록자 본인은 ACTIVE/INACTIVE만 지정 가능 (SUSPENDED/DELETED/MAINTENANCE는 관리자·시스템 전용). */
+export async function updateEquipmentStatus(
+  equipmentId: string,
+  status: "ACTIVE" | "INACTIVE",
+): Promise<void> {
+  await apiFetch<void>(`/api/v1/devices/${equipmentId}/status`, {
+    method: "PATCH",
+    body: { status },
+  });
+}
+
+// ── 내 장비 (마이페이지) ────────────────────────────────────────────────
+
+export interface MyEquipmentSummary {
+  id: string;
+  name: string;
+  category: EquipmentCategory;
+  dailyPrice: number;
+  status: EquipmentStatus;
+  productCondition: ProductCondition;
+  thumbnailUrl: string | null;
+  availableFrom: string | null;
+  availableTo: string | null;
+}
+
+interface MyEquipmentSummaryDto extends Omit<MyEquipmentSummary, "id"> {
+  id: number;
+}
+
+export async function fetchMyEquipment(): Promise<MyEquipmentSummary[]> {
+  const dto = await apiFetch<{ content: MyEquipmentSummaryDto[] }>("/api/v1/users/me/devices");
+  return dto.content.map((item) => ({ ...item, id: String(item.id) }));
 }
