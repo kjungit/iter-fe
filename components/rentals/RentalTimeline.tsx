@@ -1,6 +1,6 @@
 import { Timeline } from "@/components/ui/Timeline";
 import { RENTAL_TIMELINE_LABELS, timelineConnectorState, timelineDotState } from "@/lib/status";
-import type { RentalStatus } from "@/lib/types";
+import type { RentalStatus } from "@/lib/api/rentals";
 
 export function RentalTimeline({ status }: { status: RentalStatus }) {
   const steps = RENTAL_TIMELINE_LABELS.map((label, index) => ({

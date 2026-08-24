@@ -2,19 +2,36 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
-import { formatDailyPrice } from "@/lib/format";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { useQuery } from "@tanstack/react-query";
+import { MyEquipmentCard } from "@/components/mypage/MyEquipmentCard";
+import { fetchMyEquipment } from "@/lib/api/equipment";
+import { fetchMyReports } from "@/lib/api/reports";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
+import { useAppData } from "@/lib/store/app-data-context";
+
+const PREVIEW_SIZE = 4;
 
 export function MyPageView() {
   const router = useRouter();
-  const { currentUser, equipment, reports, logout } = useMockData();
+  const currentUser = useRequireAuth();
+  const { logout } = useAppData();
+  const { data: myEquipment, isLoading: isLoadingEquipment } = useQuery({
+    queryKey: ["equipment", "mine", { page: 0, size: PREVIEW_SIZE }],
+    queryFn: () => fetchMyEquipment({ page: 0, size: PREVIEW_SIZE }),
+    enabled: !!currentUser,
+  });
+  const { data: myReports } = useQuery({
+    queryKey: ["reports", "mine", "count"],
+    queryFn: () => fetchMyReports({ page: 0, size: 1 }),
+    enabled: !!currentUser,
+  });
 
-  const myEquipment = equipment.filter((item) => item.ownerId === currentUser.id);
-  const myReportCount = reports.filter((report) => report.reporterId === currentUser.id).length;
+  if (!currentUser) return null;
 
-  const handleLogout = () => {
-    logout();
+  const myReportCount = myReports?.totalElements ?? 0;
+
+  const handleLogout = async () => {
+    await logout();
     router.push("/");
   };
 
@@ -34,36 +51,44 @@ export function MyPageView() {
 
       <h2 className="mt-7 mb-2.5 text-[13.5px] font-bold text-ink">기본 배송지</h2>
       <div className="rounded-md border border-border p-4 text-[13px] leading-[1.6] text-text-body-1">
-        {currentUser.defaultAddress.recipientName} · {currentUser.defaultAddress.phone}
-        <br />({currentUser.defaultAddress.zipcode}) {currentUser.defaultAddress.address}{" "}
-        {currentUser.defaultAddress.detailAddress}
+        {currentUser.defaultAddress ? (
+          <>
+            {currentUser.defaultAddress.recipientName} · {currentUser.defaultAddress.phone}
+            <br />({currentUser.defaultAddress.zipcode}) {currentUser.defaultAddress.address}{" "}
+            {currentUser.defaultAddress.detailAddress}
+          </>
+        ) : (
+          <span className="text-text-secondary">등록된 배송지가 없습니다.</span>
+        )}
       </div>
 
-      <h2 className="mt-7 mb-2.5 text-[13.5px] font-bold text-ink">내가 등록한 장비</h2>
+      <div className="mt-7 mb-2.5 flex items-center justify-between">
+        <h2 className="text-[13.5px] font-bold text-ink">내가 등록한 장비</h2>
+        <Link href="/equipment/new" className="text-[12px] font-semibold text-text-secondary">
+          + 새 장비 등록
+        </Link>
+      </div>
       <div className="grid grid-cols-2 gap-3">
-        {myEquipment.length === 0 && (
+        {isLoadingEquipment && (
+          <p className="col-span-2 py-6 text-center text-[12.5px] text-text-secondary">
+            불러오는 중...
+          </p>
+        )}
+        {!isLoadingEquipment && myEquipment?.content.length === 0 && (
           <p className="col-span-2 py-6 text-center text-[12.5px] text-text-secondary">
             등록한 장비가 없습니다.
           </p>
         )}
-        {myEquipment.map((item) => (
-          <Link
-            key={item.id}
-            href={`/equipment/${item.id}`}
-            className="flex items-center gap-2.5 rounded-md border border-border p-3"
-          >
-            <div className="h-11 w-11 shrink-0">
-              <ImagePlaceholder rounded="rounded-sm" />
-            </div>
-            <div>
-              <div className="text-[13px] font-bold text-ink">{item.name}</div>
-              <div className="mt-0.5 text-[12px] text-text-secondary">
-                {formatDailyPrice(item.pricePerDay)}
-              </div>
-            </div>
-          </Link>
-        ))}
+        {myEquipment?.content.map((item) => <MyEquipmentCard key={item.id} item={item} />)}
       </div>
+      {!!myEquipment && myEquipment.totalElements > PREVIEW_SIZE && (
+        <Link
+          href="/mypage/equipment"
+          className="mt-2.5 block text-center text-[12.5px] font-semibold text-text-secondary"
+        >
+          전체 {myEquipment.totalElements}개 보기 →
+        </Link>
+      )}
 
       <Link
         href="/reports"

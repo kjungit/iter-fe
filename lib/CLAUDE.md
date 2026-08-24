@@ -1,48 +1,78 @@
-# lib/ — 도메인 타입, 목데이터, 상태 스토어
+# lib/ — 도메인 타입, 상태 스토어, API 클라이언트
 
 전역 아키텍처는 루트 `CLAUDE.md` 참고.
 
 ## 구조
 ```
 lib/
-  types.ts        도메인 타입 (Equipment, Rental, RentalStatus, Report, Dispute, AdminUser,
-                   AdminHistoryEntry, User ...)
-  mock-data.ts     시드 데이터 (장비 8, 대여 8, 내 신고 3, 관리자 회원 5·장비 5·신고 4·
-                   분쟁 3·처리 이력 5) — 핸드오프 README 수치와 동일하게 유지
-  status.ts        상태 → 배지 팔레트/라벨 매핑, 타임라인 단계 인덱스, 연체 판정 함수
+  types.ts        인증/공통 타입만 (User, UserRole, ShippingAddress). 도메인별 타입(장비/대여/
+                   신고/관리자/알림)은 각 lib/api/*.ts 파일이 직접 소유한다 — 화면은 그 파일에서
+                   import.
+  status.ts        상태 → 배지 팔레트/라벨 매핑(rentalStatusBadge, reportStatusBadge,
+                   adminUserStatusBadge, equipmentStatusBadge, paymentStatusBadge), 대여
+                   타임라인 단계 인덱스, 연체 판정 함수. 상태 배지 색은 항상 이 파일을 거쳐서만
+                   가져온다(컴포넌트에 하드코딩 금지).
   format.ts        통화("일 {가격}원"), 날짜 포맷 헬퍼
+  daum-postcode.ts 다음 우편번호 검색 팝업 로더(스크립트 동적 삽입 + Promise 래핑)
+  api/
+    client.ts         fetch 래퍼 — 액세스 토큰(메모리 보관)/401 자동 refresh 재시도/CSRF 헤더.
+                       API_BASE_URL도 여기서 export.
+    auth.ts           /api/v1/auth, /api/v1/users/me(+address) 연동
+    oauth.ts          카카오 OAuth2 로그인(exchange/signup/link), 세션 기반 교환 코드 플로우
+    equipment.ts      /api/v1/devices 전체(조회/등록/수정/삭제/상태변경/견적/가용성/내 장비)
+    rentals.ts        /api/v1/rentals 전체(요청~반납 상태머신, 배송/수령/반납증빙)
+    payments.ts       토스페이먼츠 ready/confirm
+    reports.ts        /api/v1/reports (일반 사용자 신고 제출/목록/상세)
+    admin.ts          /api/v1/admin/** 전체(회원/장비/신고/결제/처리이력)
+    notifications.ts  /api/v1/notifications 전체 + SSE 티켓 발급
+    s3-upload.ts      presigned URL로 S3 직접 PUT
+  hooks/
+    useNotificationStream.ts  SSE 구독 훅(티켓 재발급 기반 수동 재연결)
+  auth/
+    use-require-auth.ts  로그인 필요 화면에서 호출하는 가드 훅 (미인증 시 /login 리다이렉트)
   store/
-    mock-data-context.tsx   MockDataProvider (Context + useReducer), 액션 훅(useMockData)
+    app-data-context.tsx      AppDataProvider — 인증 상태(`currentUser`/`login`/`signup`/
+                               `logout`/`isAdminAuthenticated`)만 담당. react-query로 실
+                               백엔드에 붙어있다. 그 외 도메인은 각 화면 컴포넌트가 해당
+                               `lib/api/*.ts` 함수를 `useQuery`/`useMutation`으로 직접 호출—
+                               이 컨텍스트를 거치지 않는다.
     confirm-modal-context.tsx  ConfirmModalProvider, useConfirm() — Promise 기반 확인 모달
 ```
 
 ## 상태 스토어
-- 단일 Context가 인메모리 "DB" 전체를 보유 (뒤로가기/새로고침 시 초기화되는 건 허용 —
-  실 백엔드 없는 프로토타입이므로).
-- 액션은 실제 API 엔드포인트처럼 명명: `approveRental`, `rejectRental`, `registerShipping`,
-  `confirmReceipt`, `requestReturn`, `submitReturnEvidence`, `finalizeReturn`,
-  `fileDispute`, `submitReport`, `updateAdminStatus`, `submitReview`, `registerEquipment`,
-  `login`, `signup`.
-- 컴포넌트는 `useMockData()`로 액션만 호출, reducer 밖에서 상태를 직접 mutate하지 않는다.
+- 전 도메인이 실 백엔드(`iter-be`) API로 연동되어 있다. 인메모리 목데이터(`lib/mock-data.ts`)는
+  삭제됨 — 되살리지 않는다.
+- `useAppData()`(`app-data-context.tsx`)는 **인증 상태 전용**이다: `currentUser`, `login`,
+  `signup`, `logout`, `isAuthLoading`, `currentAdmin`/`isAdminAuthenticated`(= `currentUser.role
+  === "ADMIN"`에서 파생되는 편의 필드). 장비/대여/신고/관리자/알림 등 다른 도메인 상태를 여기
+  추가하지 않는다 — 해당 화면 컴포넌트에서 `lib/api/*.ts`를 직접 `useQuery`/`useMutation`으로
+  호출한다(장비 상세·대여 상세·신고 목록·관리자 탭 컴포넌트들이 이 패턴의 실례).
+- 로그인이 필요한 화면은 `useAppData()`가 아니라 `lib/auth/use-require-auth.ts`의
+  `useRequireAuth()`로 `currentUser`를 받아야 미인증/로딩 상태를 놓치지 않는다.
+- 관리자는 별도 계정 체계가 아니라 일반 `User` + `role === "ADMIN"` 통합 구조(BE
+  `SecurityConfig`의 `hasRole("ADMIN")`과 일치).
 
-## 대여 상태 머신 (RentalStatus)
-```
-PENDING --승인(등록자)--> PAID --배송등록(등록자)--> SHIPPING
-PENDING --거절(등록자)--> REJECTED
-SHIPPING --수령확인(대여자)--> RENTING
-RENTING --반납신청(대여자)--> RETURN_UPLOAD --증빙제출(대여자)--> RETURN_REQUESTED
-RETURN_REQUESTED --최종확인(등록자)--> COMPLETED
-RETURN_REQUESTED --이상있음(등록자)--> 신고 접수 플로우
-```
-- 타임라인 인덱스: `PENDING=0, PAID=1, SHIPPING=2, RENTING=3, RETURN_REQUESTED=4,
-  COMPLETED=5, REJECTED=-1(전부 미도달)`.
-- 연체 판정: 상태가 `COMPLETED`/`REJECTED`/`PENDING`이 아니고 반납예정일 < 오늘이면 연체
-  (`status.ts`의 `isOverdue`/`overdueDays`에 구현, 화면에서 재계산 금지).
-- 대여 상세 화면의 "역할 + 상태" → 액션 패널 매핑은 핸드오프 README 6번 화면 표를 그대로
-  구현 (등록자/대여자 각각 다른 패널, 한 번에 하나만 노출).
+## 대여 상태 머신 (RentalStatus — `lib/api/rentals.ts`)
+BE `RentalStatus` enum 그대로: `PENDING, REQUESTED, APPROVED, REJECTED, CANCELED, SHIPPING,
+RECEIVED, RENTING, RETURN_REQUESTED, RETURNING, RETURNED, DISPUTED, COMPLETED`. 타임라인
+인덱스·배지 매핑은 `lib/status.ts`의 `rentalTimelineStage`/`rentalStatusBadge`에 구현되어
+있으므로 화면에서 재계산하지 않는다. `overdueDays`도 BE가 계산해서 내려주는 값을 그대로 쓴다.
 
-## 목데이터 규칙
-- 이미지 필드는 실제 URL 대신 placeholder 식별자만 두고, 렌더링은 `components/ui/ImagePlaceholder`
-  (스트라이프 패턴)로 처리 — 목데이터에 base64/외부 URL을 넣지 않는다.
-- 가격은 원 단위 정수, 날짜는 ISO 문자열(`YYYY-MM-DD`)로 저장하고 `format.ts`에서 표시용
-  포맷 변환.
+## 백엔드에 API가 없는 도메인 (되살리지 말 것)
+- **리뷰(Review)**, **분쟁(Dispute)**: BE에 엔티티/리포지토리만 있고 컨트롤러·서비스가 없다.
+  이전에 목데이터로 흉내낸 UI(리뷰 작성 폼, 관리자 분쟁 탭)가 있었으나 실제로 아무것도
+  저장/전송하지 않는 가짜 기능이라 전부 제거했다. BE에 엔드포인트가 실제로 추가되기 전까지는
+  다시 만들지 않는다. (참고: 반납 확인 시 "이상 있음"으로 처리하면 `RentalStatus.DISPUTED`로
+  전이되는 기능은 `ReturnApiController`/`ReturnService`에 실제로 구현되어 있는 별개 기능 —
+  이건 그대로 유지.)
+
+## 관리자 상태 전이 규칙 (임의로 바꾸지 말 것)
+관리자 상태 변경 API들은 겉보기와 달리 허용되는 전이가 좁게 제한되어 있다 — UI는 항상 "현재
+상태에서 실제로 허용되는 다음 상태"만 옵션으로 제시해야 하며(`components/admin/AdminDetailView.tsx`
+의 `allowedOptions`/`allowedReportTransitions` 참고), 백엔드 서비스의 검증 로직과 반드시 일치시킨다:
+- 회원(`AdminUserService`): ACTIVE↔SUSPENDED만, 같은 상태로는 재변경 불가, ADMIN 역할은 정지 불가,
+  DELETED 회원은 조치 불가.
+- 장비(`AdminEquipmentService`): ACTIVE/INACTIVE → SUSPENDED(차단)만, SUSPENDED → INACTIVE(차단
+  해제, 재공개는 등록자 본인만 가능)만.
+- 신고(`AdminReportService`): RECEIVED → UNDER_REVIEW/RESOLVED/REJECTED, UNDER_REVIEW →
+  RESOLVED/REJECTED, RESOLVED/REJECTED는 종결 상태로 더 이상 변경 불가.

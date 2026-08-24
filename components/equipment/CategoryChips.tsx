@@ -1,8 +1,7 @@
 "use client";
 
 import { Chip } from "@/components/ui/Chip";
-import { EQUIPMENT_CATEGORIES } from "@/lib/mock-data";
-import type { EquipmentCategory } from "@/lib/types";
+import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABELS, type EquipmentCategory } from "@/lib/api/equipment";
 
 const ALL = "전체";
 
@@ -19,7 +18,7 @@ export function CategoryChips({ value, onChange }: CategoryChipsProps) {
       </Chip>
       {EQUIPMENT_CATEGORIES.map((category) => (
         <Chip key={category} selected={value === category} onClick={() => onChange(category)}>
-          {category}
+          {EQUIPMENT_CATEGORY_LABELS[category]}
         </Chip>
       ))}
     </div>

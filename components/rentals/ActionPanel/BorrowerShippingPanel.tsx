@@ -1,21 +1,76 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
-import { PhotoUploadSlotGrid } from "@/components/ui/PhotoUploadSlot";
+import { PhotoUploadSlot } from "@/components/ui/PhotoUploadSlot";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
-import { useMockData } from "@/lib/store/mock-data-context";
-import type { EquipmentCondition, Rental } from "@/lib/types";
+import { PRODUCT_CONDITIONS, PRODUCT_CONDITION_LABELS, type ProductCondition } from "@/lib/api/equipment";
+import { putToPresignedUrl } from "@/lib/api/s3-upload";
+import { compressImage } from "@/lib/image-compress";
+import { ApiError } from "@/lib/api/client";
+import { createReceipt, requestEvidenceImagePresignedUrls } from "@/lib/api/rentals";
+import type { RentalDetail } from "@/lib/api/rentals";
 
-const CONDITIONS: EquipmentCondition[] = ["양호", "사용감 있음", "파손·이상 있음"];
+const PHOTO_SLOT_COUNT = 4;
 
-export function BorrowerShippingPanel({ rental }: { rental: Rental }) {
-  const { confirmReceipt } = useMockData();
-  const [photoCount, setPhotoCount] = useState(0);
-  const [condition, setCondition] = useState<EquipmentCondition>("양호");
+export function BorrowerShippingPanel({ rental }: { rental: RentalDetail }) {
+  const queryClient = useQueryClient();
+  const [photos, setPhotos] = useState<(string | null)[]>(Array(PHOTO_SLOT_COUNT).fill(null));
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [condition, setCondition] = useState<ProductCondition>("NORMAL");
   const [memo, setMemo] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeSlot, setActiveSlot] = useState<number | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      createReceipt(rental.rentalId, {
+        productCondition: condition,
+        conditionDetail: memo,
+        imageUrls: photos.filter((url): url is string => url !== null),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rental", "detail", rental.rentalId] });
+      queryClient.invalidateQueries({ queryKey: ["rentals"] });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "수령 확인에 실패했습니다."),
+  });
+
+  const openFilePicker = (index: number) => {
+    setActiveSlot(index);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || activeSlot === null) return;
+
+    const slotIndex = activeSlot;
+    setUploadingIndex(slotIndex);
+    setError(null);
+    try {
+      const compressed = await compressImage(file);
+      const [upload] = await requestEvidenceImagePresignedUrls([{ contentType: compressed.type }]);
+      await putToPresignedUrl(upload.uploadUrl, compressed, upload.requiredHeaders);
+      setPhotos((prev) => {
+        const next = [...prev];
+        next[slotIndex] = upload.publicUrl;
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "사진 업로드에 실패했습니다.");
+    } finally {
+      setUploadingIndex(null);
+      setActiveSlot(null);
+    }
+  };
+
+  const photoUrls = photos.filter((url): url is string => url !== null);
 
   return (
     <PanelShell>
@@ -23,20 +78,33 @@ export function BorrowerShippingPanel({ rental }: { rental: Rental }) {
       <p className="mt-2 text-[12.5px] text-text-secondary">
         받은 장비 사진과 상태를 기록해 두면 반납 시 비교 근거가 됩니다.
       </p>
-      <div className="mt-4">
-        <PhotoUploadSlotGrid
-          filledCount={photoCount}
-          onAdd={() => setPhotoCount((count) => Math.min(4, count + 1))}
-        />
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      <div className="mt-4 grid grid-cols-4 gap-2">
+        {photos.map((url, index) => (
+          <PhotoUploadSlot
+            key={index}
+            src={url}
+            loading={uploadingIndex === index}
+            onClick={() => openFilePicker(index)}
+          />
+        ))}
       </div>
       <Select
         className="mt-3"
         value={condition}
-        onChange={(event) => setCondition(event.target.value as EquipmentCondition)}
+        onChange={(event) => setCondition(event.target.value as ProductCondition)}
       >
-        {CONDITIONS.map((option) => (
+        {PRODUCT_CONDITIONS.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {PRODUCT_CONDITION_LABELS[option]}
           </option>
         ))}
       </Select>
@@ -47,18 +115,17 @@ export function BorrowerShippingPanel({ rental }: { rental: Rental }) {
         value={memo}
         onChange={(event) => setMemo(event.target.value)}
       />
+      {error && <p className="mt-2.5 text-[12.5px] text-badge-danger-fg">{error}</p>}
       <Button
         variant="primary"
         fullWidth
         className="mt-4"
-        disabled={photoCount === 0}
-        onClick={() =>
-          confirmReceipt(rental.id, {
-            photoUrls: Array.from({ length: photoCount }, (_, i) => `receipt-${rental.id}-${i}`),
-            condition,
-            memo,
-          })
-        }
+        disabled={photoUrls.length === 0}
+        loading={mutation.isPending}
+        onClick={() => {
+          setError(null);
+          mutation.mutate();
+        }}
       >
         수령 확인 완료
       </Button>

@@ -1,25 +1,24 @@
 import { diffInDays, parseISODate } from "@/lib/date";
 import { formatCurrency, formatDateRange } from "@/lib/format";
-import { isOverdue, overdueDays, rentalStatusBadge } from "@/lib/status";
-import type { Rental } from "@/lib/types";
+import { rentalStatusBadge } from "@/lib/status";
+import type { RentalDetail } from "@/lib/api/rentals";
 
 interface TransactionDetailBlockProps {
-  rental: Rental;
+  rental: RentalDetail;
   counterpartName: string;
 }
 
 export function TransactionDetailBlock({ rental, counterpartName }: TransactionDetailBlockProps) {
   const days = diffInDays(parseISODate(rental.endDate), parseISODate(rental.startDate)) + 1;
-  const overdue = isOverdue(rental);
 
   const rows: Array<[string, string]> = [
-    ["거래번호", rental.id],
+    ["거래번호", rental.rentalId],
     ["상태", rentalStatusBadge(rental.status).label],
     ["대여 기간", formatDateRange(rental.startDate, rental.endDate)],
     ["대여 일수", `${days}일`],
     ["일 대여료", formatCurrency(Math.round(rental.totalPrice / days))],
     ["총 결제 금액", formatCurrency(rental.totalPrice)],
-    ["연체", overdue ? `${overdueDays(rental)}일 연체` : "없음"],
+    ["연체", rental.overdueDays > 0 ? `${rental.overdueDays}일 연체` : "없음"],
     ["상대방", counterpartName],
   ];
 

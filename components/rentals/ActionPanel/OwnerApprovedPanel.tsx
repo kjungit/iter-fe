@@ -1,19 +1,31 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
-import { useMockData } from "@/lib/store/mock-data-context";
-import type { Rental } from "@/lib/types";
+import { ApiError } from "@/lib/api/client";
+import { registerShipping } from "@/lib/api/rentals";
+import type { RentalDetail } from "@/lib/api/rentals";
 
 const CARRIERS = ["CJ대한통운", "한진택배", "롯데택배", "우체국택배"];
 
-export function OwnerPaidPanel({ rental }: { rental: Rental }) {
-  const { registerShipping } = useMockData();
+export function OwnerApprovedPanel({ rental }: { rental: RentalDetail }) {
+  const queryClient = useQueryClient();
   const [carrier, setCarrier] = useState(CARRIERS[0]);
   const [trackingNumber, setTrackingNumber] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () => registerShipping(rental.rentalId, { carrier, trackingNumber }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rental", "detail", rental.rentalId] });
+      queryClient.invalidateQueries({ queryKey: ["rentals"] });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "배송 등록에 실패했습니다."),
+  });
 
   const canSubmit = trackingNumber.trim().length > 0;
 
@@ -35,12 +47,17 @@ export function OwnerPaidPanel({ rental }: { rental: Rental }) {
           onChange={(event) => setTrackingNumber(event.target.value)}
         />
       </div>
+      {error && <p className="mt-2.5 text-[12.5px] text-badge-danger-fg">{error}</p>}
       <Button
         variant="primary"
         fullWidth
         className="mt-4"
         disabled={!canSubmit}
-        onClick={() => registerShipping(rental.id, { carrier, trackingNumber })}
+        loading={mutation.isPending}
+        onClick={() => {
+          setError(null);
+          mutation.mutate();
+        }}
       >
         배송 등록 완료
       </Button>

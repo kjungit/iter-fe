@@ -36,8 +36,14 @@ export function diffInDays(a: Date, b: Date): number {
   return Math.round(ms / 86_400_000);
 }
 
+/**
+ * "YYYY-MM-DD"(LocalDate)뿐 아니라 "YYYY-MM-DDTHH:mm:ss.SSSSSS"(LocalDateTime) 문자열도 받는다 —
+ * 신고/알림/관리자 처리이력 등 BE의 createdAt류는 대부분 LocalDateTime이라 "T" 이후를 버리지
+ * 않으면 day가 "21T13:17:20.955093" 같은 문자열이 되어 NaN이 된다. 시각은 표시에 안 쓰므로
+ * 날짜만 취해도 안전하다.
+ */
 export function parseISODate(value: string): Date {
-  const [year, month, day] = value.split("-").map(Number);
+  const [year, month, day] = value.split("T")[0].split("-").map(Number);
   return new Date(year, month - 1, day);
 }
 
@@ -54,13 +60,17 @@ export interface DateRange {
 }
 
 /**
- * Custom calendar range-selection rule (handoff README §2):
- * no range yet, or start===end already, or the clicked date is before the
- * current start -> reset start=end=clicked. Otherwise only extend `end`.
- * ISO "YYYY-MM-DD" strings compare correctly with plain `<`/`>`.
+ * Custom calendar range-selection rule (handoff README §2): first click arms a single day
+ * (start=end). A second click on a later day extends `end` to form the range. Any click while
+ * a complete range (start!==end) is already selected, or a click before the armed start, resets
+ * to a fresh single-day selection. ISO "YYYY-MM-DD" strings compare correctly with plain `<`/`>`.
  */
 export function applyCalendarRangeClick(current: DateRange, clickedIso: string): DateRange {
-  if (!current.start || !current.end || current.start === current.end || clickedIso < current.start) {
+  const hasCompleteRange = !!current.start && !!current.end && current.start !== current.end;
+  if (!current.start || hasCompleteRange) {
+    return { start: clickedIso, end: clickedIso };
+  }
+  if (clickedIso < current.start) {
     return { start: clickedIso, end: clickedIso };
   }
   return { start: current.start, end: clickedIso };

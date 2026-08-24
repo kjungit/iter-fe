@@ -1,15 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import type { ReportReason } from "@/lib/types";
-
-const REASONS: ReportReason[] = [
-  "장비 파손 / 상태 불일치",
-  "반납 지연 / 미반납",
-  "허위 매물",
-  "부적절한 언행",
-  "기타",
-];
+import { REPORT_REASONS, type ReportReason } from "@/lib/api/reports";
 
 interface ReportTypeRadioListProps {
   value: ReportReason;
@@ -19,7 +11,7 @@ interface ReportTypeRadioListProps {
 export function ReportTypeRadioList({ value, onChange }: ReportTypeRadioListProps) {
   return (
     <div className="flex flex-col gap-2">
-      {REASONS.map((reason) => {
+      {REPORT_REASONS.map((reason) => {
         const selected = reason === value;
         return (
           <label

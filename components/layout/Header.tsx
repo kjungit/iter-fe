@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { NotificationBell } from "@/components/layout/NotificationBell";
+import { useAppData } from "@/lib/store/app-data-context";
 
 const NAV_ITEMS = [
   { href: "/", label: "홈" },
@@ -13,7 +14,16 @@ const NAV_ITEMS = [
 
 export function Header() {
   const pathname = usePathname();
-  const { currentUser } = useMockData();
+  const router = useRouter();
+  const { currentUser, logout } = useAppData();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
+
+  // 관리자 페이지는 별도 레이아웃(app/admin/layout.tsx)에서 자체 헤더를 그린다.
+  if (pathname.startsWith("/admin")) return null;
 
   return (
     <header className="sticky top-0 z-50 h-16 border-b border-border bg-white">
@@ -42,18 +52,28 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-[18px]">
-          <Link href="/admin" className="text-[13px] font-semibold text-text-secondary">
-            관리자
-          </Link>
-          <Link href="/login" className="text-[13px] font-semibold text-text-secondary">
-            로그인
-          </Link>
-          <Link
-            href="/mypage"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-strong text-[12px] font-bold text-white"
-          >
-            {currentUser.avatarInitials.slice(0, 2)}
-          </Link>
+          {currentUser ? (
+            <>
+              <NotificationBell />
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-[13px] font-semibold text-text-secondary"
+              >
+                로그아웃
+              </button>
+              <Link
+                href="/mypage"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-strong text-[12px] font-bold text-white"
+              >
+                {currentUser.avatarInitials.slice(0, 2)}
+              </Link>
+            </>
+          ) : (
+            <Link href="/login" className="text-[13px] font-semibold text-text-secondary">
+              로그인
+            </Link>
+          )}
         </div>
       </div>
     </header>

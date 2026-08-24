@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { ActionPanel } from "@/components/rentals/ActionPanel/ActionPanel";
 import { RentalTimeline } from "@/components/rentals/RentalTimeline";
 import { TransactionDetailBlock } from "@/components/rentals/TransactionDetailBlock";
@@ -8,11 +9,26 @@ import { Badge } from "@/components/ui/Badge";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { formatDateRange } from "@/lib/format";
 import { rentalRole, rentalStatusBadge } from "@/lib/status";
-import { useMockData } from "@/lib/store/mock-data-context";
+import { fetchRentalDetail } from "@/lib/api/rentals";
+import { useRequireAuth } from "@/lib/auth/use-require-auth";
 
 export function RentalDetailView({ rentalId }: { rentalId: string }) {
-  const { rentals, equipment, currentUser } = useMockData();
-  const rental = rentals.find((candidate) => candidate.id === rentalId);
+  const currentUser = useRequireAuth();
+  const { data: rental, isLoading } = useQuery({
+    queryKey: ["rental", "detail", rentalId],
+    queryFn: () => fetchRentalDetail(rentalId),
+    enabled: !!currentUser,
+  });
+
+  if (!currentUser) return null;
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-[760px] px-6 py-16 text-center text-[13px] text-text-secondary">
+        불러오는 중...
+      </div>
+    );
+  }
 
   if (!rental) {
     return (
@@ -25,9 +41,8 @@ export function RentalDetailView({ rentalId }: { rentalId: string }) {
     );
   }
 
-  const item = equipment.find((candidate) => candidate.id === rental.equipmentId);
   const role = rentalRole(rental, currentUser.id);
-  const counterpartName = role === "owner" ? rental.borrowerName : rental.ownerName;
+  const counterpartName = role === "owner" ? rental.renter.nickname : rental.owner.nickname;
   const badge = rentalStatusBadge(rental.status);
 
   return (
@@ -38,10 +53,14 @@ export function RentalDetailView({ rentalId }: { rentalId: string }) {
 
       <div className="mt-4 mb-6 flex items-center gap-3.5 rounded-lg border border-border p-[18px]">
         <div className="h-16 w-16 shrink-0">
-          <ImagePlaceholder rounded="rounded-sm" />
+          <ImagePlaceholder
+            rounded="rounded-sm"
+            src={rental.equipment.thumbnailUrl}
+            alt={rental.equipment.equipmentName}
+          />
         </div>
         <div className="flex-1">
-          <div className="text-[15px] font-extrabold text-ink">{item?.name ?? "삭제된 장비"}</div>
+          <div className="text-[15px] font-extrabold text-ink">{rental.equipment.equipmentName}</div>
           <div className="mt-1 text-[12.5px] text-text-secondary">
             {formatDateRange(rental.startDate, rental.endDate)} · {counterpartName}
           </div>
@@ -62,7 +81,7 @@ export function RentalDetailView({ rentalId }: { rentalId: string }) {
 
       <div className="mt-5 text-center">
         <Link
-          href={`/rentals/${rental.id}/report`}
+          href={`/rentals/${rental.rentalId}/report`}
           className="text-[12px] font-semibold text-text-tertiary"
         >
           문제가 있나요? 신고하기
