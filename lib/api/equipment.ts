@@ -56,6 +56,22 @@ export const PRODUCT_CONDITION_LABELS: Record<ProductCondition, string> = {
 
 export type EquipmentStatus = "ACTIVE" | "INACTIVE" | "MAINTENANCE" | "SUSPENDED" | "DELETED";
 
+export const EQUIPMENT_STATUSES: EquipmentStatus[] = [
+  "ACTIVE",
+  "INACTIVE",
+  "MAINTENANCE",
+  "SUSPENDED",
+  "DELETED",
+];
+
+export const EQUIPMENT_STATUS_LABELS: Record<EquipmentStatus, string> = {
+  ACTIVE: "공개중",
+  INACTIVE: "숨김",
+  MAINTENANCE: "점검중",
+  SUSPENDED: "이용중지",
+  DELETED: "삭제됨",
+};
+
 export interface EquipmentSummary {
   id: string;
   name: string;
@@ -202,6 +218,33 @@ export async function fetchEquipmentAvailability(
   );
 }
 
+export interface EquipmentEstimate {
+  rentalDays: number;
+  dailyPrice: number;
+  totalPrice: number;
+}
+
+interface EquipmentEstimateDto {
+  equipmentId: number;
+  startDate: string;
+  endDate: string;
+  rentalDays: number;
+  dailyPrice: number;
+  totalPrice: number;
+}
+
+/** startDate < endDate 필요(당일 대여 불가) — 서버 EquipmentEstimateRequest 검증과 동일. */
+export async function fetchEquipmentEstimate(
+  equipmentId: string,
+  startDate: string,
+  endDate: string,
+): Promise<EquipmentEstimate> {
+  const dto = await apiFetch<EquipmentEstimateDto>(
+    `/api/v1/devices/${equipmentId}/estimate?startDate=${startDate}&endDate=${endDate}`,
+  );
+  return { rentalDays: dto.rentalDays, dailyPrice: dto.dailyPrice, totalPrice: dto.totalPrice };
+}
+
 // ── 이미지 업로드 (presigned URL) ──────────────────────────────────────────
 // 순서: 1) presigned URL 발급  2) 반환받은 uploadUrl로 S3에 직접 PUT
 // 3) objectKey들을 장비 등록 요청에 imageKeys로 전달 (imageUrl 문자열이 아니라 objectKey!)
@@ -299,7 +342,33 @@ interface MyEquipmentSummaryDto extends Omit<MyEquipmentSummary, "id"> {
   id: number;
 }
 
-export async function fetchMyEquipment(): Promise<MyEquipmentSummary[]> {
-  const dto = await apiFetch<{ content: MyEquipmentSummaryDto[] }>("/api/v1/users/me/devices");
-  return dto.content.map((item) => ({ ...item, id: String(item.id) }));
+export interface MyEquipmentListResult {
+  content: MyEquipmentSummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export async function fetchMyEquipment(
+  params: {
+    status?: EquipmentStatus;
+    sort?: "LATEST" | "PRICE_ASC" | "PRICE_DESC" | "RATING_DESC";
+    page?: number;
+    size?: number;
+  } = {},
+): Promise<MyEquipmentListResult> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) query.set(key, String(value));
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const dto = await apiFetch<{
+    content: MyEquipmentSummaryDto[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+  }>(`/api/v1/users/me/devices${suffix}`);
+  return { ...dto, content: dto.content.map((item) => ({ ...item, id: String(item.id) })) };
 }

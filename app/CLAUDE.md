@@ -35,12 +35,16 @@
 | 9 | 내 신고 상세 | `/reports/[id]` |
 | 10 | 마이페이지 | `/mypage` |
 | 11 | 장비 등록 | `/equipment/new` |
-| 12 | 리뷰 작성 | `/rentals/[id]/review` |
+| 12 | 장비 수정 | `/equipment/[id]/edit` |
 | 13 | 로그인 | `/login` |
 | 14 | 회원가입 | `/signup` |
-| 15 | 관리자 목록 | `/admin` (`?tab=users\|equipment\|reports\|disputes\|history`, `(dashboard)` 그룹 — 가드 적용) |
-| 16 | 관리자 상세 | `/admin/[entity]/[id]` (`entity: users\|equipment\|reports\|disputes`, `(dashboard)` 그룹 — 가드 적용) |
-| 17 | 관리자 로그인 | `/admin/login` (아이디/비밀번호, `(dashboard)` 그룹 밖 — 가드 미적용) |
+| 15 | 카카오 로그인 콜백 | `/oauth2/callback` |
+| 16 | 관리자 목록 | `/admin` (`?tab=users\|equipment\|reports\|payments\|history`, `(dashboard)` 그룹 — 가드 적용) |
+| 17 | 관리자 상세 | `/admin/[entity]/[id]` (`entity: users\|equipment\|reports\|payments`, `(dashboard)` 그룹 — 가드 적용) |
+| 18 | 관리자 로그인 | `/admin/login` (아이디/비밀번호, `(dashboard)` 그룹 밖 — 가드 미적용) |
+
+리뷰(Review)·분쟁(Dispute) 화면은 BE에 API 자체가 없어(엔티티만 존재, 컨트롤러 없음) 제거된
+상태다 — 백엔드에 해당 엔드포인트가 생기기 전까지는 다시 추가하지 않는다.
 
 - 탭/필터는 모두 `searchParams` 기반 (뒤로가기·공유 가능해야 함). 페이지는 `params`/
   `searchParams`를 Promise로 받는 canary 컨벤션 준수 (`PageProps<'/path'>` 헬퍼 사용).

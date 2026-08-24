@@ -25,8 +25,8 @@ export function ActionPanel({ rental }: { rental: RentalDetail }) {
   if (rental.status === "DISPUTED") {
     return (
       <WaitingPanel
-        title="분쟁 처리 중"
-        description="반납 과정에서 이상이 발견되어 분쟁으로 접수되었습니다. 운영팀이 검토 후 안내드립니다."
+        title="신고 처리 중"
+        description="반납 과정에서 이상이 발견되어 신고로 접수되었습니다. 운영팀이 검토 후 안내드립니다."
       />
     );
   }

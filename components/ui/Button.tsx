@@ -2,13 +2,14 @@ import Link from "next/link";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-type Variant = "primary" | "secondary" | "danger-outline";
+type Variant = "primary" | "secondary" | "danger-outline" | "kakao";
 type Size = "lg" | "md" | "sm";
 
 const VARIANT_CLASSES: Record<Variant, string> = {
   primary: "bg-ink-strong text-white border border-ink-strong",
   secondary: "bg-white text-text-body-3 border border-border-input",
   "danger-outline": "bg-white text-[#C0392B] border border-[#F0D0CD]",
+  kakao: "bg-kakao text-kakao-fg border border-kakao",
 };
 
 const SIZE_CLASSES: Record<Size, string> = {

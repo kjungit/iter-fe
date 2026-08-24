@@ -41,6 +41,10 @@
   --color-placeholder-a: #f2f2f2;
   --color-placeholder-b: #e8e8e8;
 
+  /* Kakao brand (OAuth 로그인 버튼 전용 — 카카오 공식 가이드라인 색상) */
+  --color-kakao: #fee500;
+  --color-kakao-fg: #191919;
+
   /* Backdrop */
   --color-backdrop: rgb(17 17 17 / 45%);
 
@@ -64,6 +68,25 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+/* 클릭 가능한 네이티브 엘리먼트는 기본적으로 pointer 커서 표시 (Tailwind v4 preflight는
+   더 이상 button에 pointer를 주지 않음). disabled 유틸리티가 이 레이어보다 우선순위가
+   높은 utilities 레이어에 있으므로 Button.tsx의 disabled:cursor-not-allowed는 그대로 유지됨. */
+@layer base {
+  a[href],
+  button,
+  [role="button"],
+  label[for],
+  select,
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 /* Image placeholder stripe pattern (no reusable token equivalent — see components/CLAUDE.md) */

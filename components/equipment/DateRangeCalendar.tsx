@@ -22,14 +22,17 @@ interface DateRangeCalendarProps {
   onChange: (range: DateRange) => void;
   /** ISO dates that cannot be selected (already booked by another rental). */
   disabledDates?: Set<string>;
+  /** 이 날짜 이전(포함하지 않음, 즉 이 날짜부터)은 선택 가능. 장비 대여 가능 시작일과 결합해 계산된 값을 넘긴다. */
+  minIso?: string;
+  /** 이 날짜 이후(포함)는 선택 불가. 장비 대여 가능 종료일. */
+  maxIso?: string;
 }
 
-export function DateRangeCalendar({ value, onChange, disabledDates }: DateRangeCalendarProps) {
+export function DateRangeCalendar({ value, onChange, disabledDates, minIso, maxIso }: DateRangeCalendarProps) {
   const [open, setOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() =>
-    startOfMonth(value.start ? parseISODate(value.start) : new Date()),
+    startOfMonth(parseISODate(value.start ?? minIso ?? toISODate(new Date()))),
   );
-  const [todayIso] = useState(() => toISODate(new Date()));
 
   const cells: Array<string | null> = [
     ...Array.from({ length: firstWeekdayOfMonth(visibleMonth) }, () => null),
@@ -89,7 +92,10 @@ export function DateRangeCalendar({ value, onChange, disabledDates }: DateRangeC
 
               const isEndpoint = iso === value.start || iso === value.end;
               const inRange = !!value.start && !!value.end && iso > value.start && iso < value.end;
-              const isDisabled = iso < todayIso || !!disabledDates?.has(iso);
+              const isDisabled =
+                (!!minIso && iso < minIso) ||
+                (!!maxIso && iso > maxIso) ||
+                !!disabledDates?.has(iso);
 
               if (isDisabled) {
                 return (

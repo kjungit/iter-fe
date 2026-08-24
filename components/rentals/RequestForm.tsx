@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { diffInDays, parseISODate } from "@/lib/date";
 import { formatCurrency, formatDateRange } from "@/lib/format";
-import { fetchEquipmentDetail } from "@/lib/api/equipment";
+import { fetchEquipmentDetail, fetchEquipmentEstimate } from "@/lib/api/equipment";
 import { createRental } from "@/lib/api/rentals";
 import { readyPayment } from "@/lib/api/payments";
 import { openTossCheckout } from "@/lib/toss";
+import { openDaumPostcodeSearch } from "@/lib/daum-postcode";
 import { ApiError } from "@/lib/api/client";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
 import type { ShippingAddress } from "@/lib/types";
@@ -38,11 +39,47 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
     queryFn: () => fetchEquipmentDetail(equipmentId),
   });
 
-  const [address, setAddress] = useState<ShippingAddress>(
-    currentUser?.defaultAddress ?? EMPTY_ADDRESS,
-  );
+  const [address, setAddress] = useState<ShippingAddress>(EMPTY_ADDRESS);
+  const [useDefaultAddress, setUseDefaultAddress] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const appliedDefaultRef = useRef(false);
+
+  // currentUser는 로그인 세션 부트스트랩(refresh→/users/me)이 끝난 뒤 비동기로 채워지므로,
+  // useState 초기값으로는 defaultAddress를 절대 받아올 수 없다 — 로드되는 순간을 지켜보다 한 번만 적용.
+  useEffect(() => {
+    if (!appliedDefaultRef.current && currentUser?.defaultAddress) {
+      appliedDefaultRef.current = true;
+      setAddress(currentUser.defaultAddress);
+      setUseDefaultAddress(true);
+    }
+  }, [currentUser]);
+
+  const { data: estimate } = useQuery({
+    queryKey: ["equipment", "estimate", equipmentId, start, end],
+    queryFn: () => fetchEquipmentEstimate(equipmentId, start!, end!),
+    enabled: !!start && !!end,
+  });
+
+  const handlePostcodeSearch = async () => {
+    try {
+      const result = await openDaumPostcodeSearch();
+      setUseDefaultAddress(false);
+      setAddress((prev) => ({
+        ...prev,
+        zipcode: result.zonecode,
+        address: result.roadAddress || result.jibunAddress,
+      }));
+    } catch {
+      setError("주소 검색을 불러오지 못했습니다.");
+    }
+  };
+
+  const handleUseManualAddress = () => {
+    appliedDefaultRef.current = true;
+    setUseDefaultAddress(false);
+    setAddress(EMPTY_ADDRESS);
+  };
 
   const paymentMutation = useMutation({
     mutationFn: async () => {
@@ -57,6 +94,7 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
         address: address.address,
         detailAddress: address.detailAddress,
         requestMessage: message,
+        useDefaultAddress,
       });
       const ready = await readyPayment(rentalId);
       const origin = window.location.origin;
@@ -94,10 +132,12 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
     );
   }
 
-  const days = diffInDays(parseISODate(end), parseISODate(start)) + 1;
-  const totalPrice = days * item.dailyPrice;
+  const localDays = diffInDays(parseISODate(end), parseISODate(start)) + 1;
+  const days = estimate?.rentalDays ?? localDays;
+  const totalPrice = estimate?.totalPrice ?? days * item.dailyPrice;
 
   const updateAddress = (field: keyof ShippingAddress, value: string) => {
+    setUseDefaultAddress(false);
     setAddress((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -128,7 +168,31 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
         </div>
       </div>
 
-      <h2 className="mt-7 text-[14px] font-bold text-ink">배송지 정보</h2>
+      <div className="mt-7 flex items-center justify-between">
+        <h2 className="text-[14px] font-bold text-ink">배송지 정보</h2>
+        {useDefaultAddress ? (
+          <span className="text-[12px] font-semibold text-text-secondary">
+            기본 배송지 적용됨 ·{" "}
+            <button type="button" className="underline" onClick={handleUseManualAddress}>
+              다른 주소 입력
+            </button>
+          </span>
+        ) : (
+          currentUser.defaultAddress && (
+            <button
+              type="button"
+              className="text-[12px] font-semibold text-text-secondary underline"
+              onClick={() => {
+                appliedDefaultRef.current = true;
+                setAddress(currentUser.defaultAddress!);
+                setUseDefaultAddress(true);
+              }}
+            >
+              기본 배송지 사용
+            </button>
+          )
+        )}
+      </div>
       <div className="mt-2.5 flex flex-col gap-2.5">
         <Input
           placeholder="수령인 이름"
@@ -145,15 +209,17 @@ export function RequestForm({ equipmentId, start, end }: RequestFormProps) {
             className="flex-1"
             placeholder="우편번호"
             value={address.zipcode}
-            onChange={(event) => updateAddress("zipcode", event.target.value)}
+            readOnly
           />
-          <Input
-            className="flex-[2]"
-            placeholder="주소"
-            value={address.address}
-            onChange={(event) => updateAddress("address", event.target.value)}
-          />
+          <Button type="button" variant="secondary" onClick={handlePostcodeSearch}>
+            주소 검색
+          </Button>
         </div>
+        <Input
+          placeholder="주소"
+          value={address.address}
+          onChange={(event) => updateAddress("address", event.target.value)}
+        />
         <Input
           placeholder="상세 주소"
           value={address.detailAddress}

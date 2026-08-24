@@ -2,6 +2,7 @@ export { Badge } from "@/components/ui/Badge";
 export { Button, LinkButton } from "@/components/ui/Button";
 export { Chip } from "@/components/ui/Chip";
 export { ConfirmModal } from "@/components/ui/ConfirmModal";
+export { DropdownMenu, DropdownMenuItem } from "@/components/ui/DropdownMenu";
 export { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 export { Input } from "@/components/ui/Input";
 export { PhotoUploadSlot, PhotoUploadSlotGrid } from "@/components/ui/PhotoUploadSlot";

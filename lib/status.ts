@@ -1,5 +1,7 @@
 import type { RentalStatus } from "@/lib/api/rentals";
-import type { DisputeStatus, EquipmentStatus, MemberStatus, ReportStatus } from "@/lib/types";
+import type { EquipmentStatus } from "@/lib/api/equipment";
+import type { ReportStatus } from "@/lib/api/reports";
+import type { PaymentStatus, UserStatus } from "@/lib/api/admin";
 
 export type BadgePalette =
   | "neutral"
@@ -25,33 +27,37 @@ const RENTAL_STATUS_BADGE: Record<RentalStatus, BadgeInfo> = {
   RETURN_REQUESTED: { label: "반납대기", palette: "warning" },
   RETURNING: { label: "반납중", palette: "warning" },
   RETURNED: { label: "반납확인중", palette: "warning" },
-  DISPUTED: { label: "분쟁중", palette: "danger" },
+  DISPUTED: { label: "신고중", palette: "danger" },
   COMPLETED: { label: "완료", palette: "done" },
 };
 
 const REPORT_STATUS_BADGE: Record<ReportStatus, BadgeInfo> = {
-  접수: { label: "접수", palette: "neutral" },
-  검토중: { label: "검토중", palette: "warning" },
-  처리완료: { label: "처리완료", palette: "success" },
-  반려: { label: "반려", palette: "danger" },
+  RECEIVED: { label: "접수", palette: "neutral" },
+  UNDER_REVIEW: { label: "검토중", palette: "warning" },
+  RESOLVED: { label: "처리완료", palette: "success" },
+  REJECTED: { label: "반려", palette: "danger" },
 };
 
-const DISPUTE_STATUS_BADGE: Record<DisputeStatus, BadgeInfo> = {
-  접수: { label: "접수", palette: "neutral" },
-  조정중: { label: "조정중", palette: "warning" },
-  종결: { label: "종결", palette: "done" },
-};
-
-const MEMBER_STATUS_BADGE: Record<MemberStatus, BadgeInfo> = {
-  정상: { label: "정상", palette: "success" },
-  경고: { label: "경고", palette: "warning" },
-  정지: { label: "정지", palette: "danger" },
+const USER_STATUS_BADGE: Record<UserStatus, BadgeInfo> = {
+  ACTIVE: { label: "정상", palette: "success" },
+  SUSPENDED: { label: "정지", palette: "danger" },
+  DELETED: { label: "탈퇴", palette: "neutral" },
 };
 
 const EQUIPMENT_STATUS_BADGE: Record<EquipmentStatus, BadgeInfo> = {
-  공개: { label: "공개", palette: "success" },
-  숨김: { label: "숨김", palette: "neutral" },
-  중지: { label: "중지", palette: "danger" },
+  ACTIVE: { label: "공개중", palette: "success" },
+  INACTIVE: { label: "숨김", palette: "neutral" },
+  MAINTENANCE: { label: "점검중", palette: "warning" },
+  SUSPENDED: { label: "차단됨", palette: "danger" },
+  DELETED: { label: "삭제됨", palette: "neutral" },
+};
+
+const PAYMENT_STATUS_BADGE: Record<PaymentStatus, BadgeInfo> = {
+  PENDING: { label: "결제대기", palette: "neutral" },
+  PAID: { label: "결제완료", palette: "success" },
+  REFUNDED: { label: "환불완료", palette: "warning" },
+  CANCELED: { label: "결제취소", palette: "danger" },
+  FAILED: { label: "결제실패", palette: "danger" },
 };
 
 export function rentalStatusBadge(status: RentalStatus): BadgeInfo {
@@ -62,16 +68,16 @@ export function reportStatusBadge(status: ReportStatus): BadgeInfo {
   return REPORT_STATUS_BADGE[status];
 }
 
-export function disputeStatusBadge(status: DisputeStatus): BadgeInfo {
-  return DISPUTE_STATUS_BADGE[status];
-}
-
-export function memberStatusBadge(status: MemberStatus): BadgeInfo {
-  return MEMBER_STATUS_BADGE[status];
+export function adminUserStatusBadge(status: UserStatus): BadgeInfo {
+  return USER_STATUS_BADGE[status];
 }
 
 export function equipmentStatusBadge(status: EquipmentStatus): BadgeInfo {
   return EQUIPMENT_STATUS_BADGE[status];
+}
+
+export function paymentStatusBadge(status: PaymentStatus): BadgeInfo {
+  return PAYMENT_STATUS_BADGE[status];
 }
 
 export const RENTAL_TIMELINE_LABELS = [

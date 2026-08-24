@@ -16,6 +16,21 @@ export type RentalStatus =
   | "DISPUTED"
   | "COMPLETED";
 
+export const RENTAL_STATUSES: RentalStatus[] = [
+  "PENDING",
+  "REQUESTED",
+  "APPROVED",
+  "REJECTED",
+  "CANCELED",
+  "SHIPPING",
+  "RENTING",
+  "RETURN_REQUESTED",
+  "RETURNING",
+  "RETURNED",
+  "DISPUTED",
+  "COMPLETED",
+];
+
 export type PaymentStatus = "PENDING" | "PAID" | "REFUNDED" | "CANCELED" | "FAILED";
 
 export interface UserSummary {
@@ -153,6 +168,7 @@ export interface RentalCreateInput {
   address: string;
   detailAddress?: string;
   requestMessage?: string;
+  useDefaultAddress?: boolean;
 }
 
 export async function createRental(input: RentalCreateInput): Promise<{ rentalId: string }> {
@@ -200,17 +216,66 @@ function toHistoryItem(dto: RentalHistoryDto): RentalHistoryItem {
   };
 }
 
-async function fetchHistory(path: string): Promise<RentalHistoryItem[]> {
-  const dto = await apiFetch<{ content: RentalHistoryDto[] }>(path);
-  return dto.content.map(toHistoryItem);
+export interface RentalHistoryListResult {
+  content: RentalHistoryItem[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
-export function fetchBorrowedRentals(overdueOnly = false): Promise<RentalHistoryItem[]> {
-  return fetchHistory(`/api/v1/rentals/borrowed${overdueOnly ? "/overdue" : ""}`);
+export interface RentalHistorySearchInput {
+  status?: RentalStatus;
+  equipmentName?: string;
+  page?: number;
+  size?: number;
 }
 
-export function fetchLentRentals(overdueOnly = false): Promise<RentalHistoryItem[]> {
-  return fetchHistory(`/api/v1/rentals/lent${overdueOnly ? "/overdue" : ""}`);
+function buildQuery(params: Record<string, string | number | undefined>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  }
+  return query.toString() ? `?${query.toString()}` : "";
+}
+
+async function fetchHistory(
+  path: string,
+  params: RentalHistorySearchInput | { page?: number; size?: number } = {},
+): Promise<RentalHistoryListResult> {
+  const dto = await apiFetch<{
+    content: RentalHistoryDto[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+  }>(`${path}${buildQuery(params as Record<string, string | number | undefined>)}`);
+  return { ...dto, content: dto.content.map(toHistoryItem) };
+}
+
+export function fetchBorrowedRentals(
+  params: RentalHistorySearchInput = {},
+): Promise<RentalHistoryListResult> {
+  return fetchHistory("/api/v1/rentals/borrowed", params);
+}
+
+export function fetchLentRentals(
+  params: RentalHistorySearchInput = {},
+): Promise<RentalHistoryListResult> {
+  return fetchHistory("/api/v1/rentals/lent", params);
+}
+
+/** 연체 전용 엔드포인트는 status/equipmentName 필터 없이 page/size만 받는다 (BE PagingRequest). */
+export function fetchBorrowedOverdueRentals(
+  params: { page?: number; size?: number } = {},
+): Promise<RentalHistoryListResult> {
+  return fetchHistory("/api/v1/rentals/borrowed/overdue", params);
+}
+
+export function fetchLentOverdueRentals(
+  params: { page?: number; size?: number } = {},
+): Promise<RentalHistoryListResult> {
+  return fetchHistory("/api/v1/rentals/lent/overdue", params);
 }
 
 export interface ShippingRegisterInput {
@@ -258,13 +323,33 @@ interface ReturnTargetDto {
   returnDate: string | null;
 }
 
-export async function fetchReturnTargets(): Promise<ReturnTarget[]> {
-  const dto = await apiFetch<{ content: ReturnTargetDto[] }>("/api/v1/rentals/returns");
-  return dto.content.map((item) => ({
-    ...item,
-    rentalId: String(item.rentalId),
-    renter: toUserSummary(item.renter),
-  }));
+export interface ReturnTargetListResult {
+  content: ReturnTarget[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+/** BE가 page/size(default size=20) 기반 PageResponse로 응답한다 — 파라미터 없이 부르면 첫 20건만 온다. */
+export async function fetchReturnTargets(
+  params: { page?: number; size?: number } = {},
+): Promise<ReturnTargetListResult> {
+  const dto = await apiFetch<{
+    content: ReturnTargetDto[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+  }>(`/api/v1/rentals/returns${buildQuery(params)}`);
+  return {
+    ...dto,
+    content: dto.content.map((item) => ({
+      ...item,
+      rentalId: String(item.rentalId),
+      renter: toUserSummary(item.renter),
+    })),
+  };
 }
 
 export async function fetchReturnComparison(rentalId: string): Promise<ReturnComparison> {

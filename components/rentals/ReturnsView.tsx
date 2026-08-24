@@ -1,19 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
+import { Pager } from "@/components/ui/Pager";
 import { formatDateRange } from "@/lib/format";
 import { fetchReturnTargets } from "@/lib/api/rentals";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
 
+const PAGE_SIZE = 20;
+
 export function ReturnsView() {
   const currentUser = useRequireAuth();
-  const { data: targets, isLoading } = useQuery({
-    queryKey: ["rentals", "returns"],
-    queryFn: fetchReturnTargets,
+  const [page, setPage] = useState(0);
+  const { data, isLoading } = useQuery({
+    queryKey: ["rentals", "returns", page],
+    queryFn: () => fetchReturnTargets({ page, size: PAGE_SIZE }),
     enabled: !!currentUser,
   });
+  const targets = data?.content;
 
   if (!currentUser) return null;
 
@@ -52,6 +58,7 @@ export function ReturnsView() {
           </Link>
         ))}
       </div>
+      {data && <Pager page={page} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

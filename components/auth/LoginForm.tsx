@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { ApiError } from "@/lib/api/client";
+import { startKakaoLogin } from "@/lib/api/oauth";
 import { useAppData } from "@/lib/store/app-data-context";
 
 export function LoginForm() {
@@ -56,6 +57,22 @@ export function LoginForm() {
       >
         로그인
       </Button>
+
+      <div className="mt-4 flex items-center gap-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-[12px] text-text-tertiary">또는</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+      <Button
+        type="button"
+        variant="kakao"
+        fullWidth
+        className="mt-4 rounded-sm py-[15px] text-[14.5px]"
+        onClick={startKakaoLogin}
+      >
+        카카오로 로그인
+      </Button>
+
       <p className="mt-4 text-center text-[13px] text-text-secondary">
         계정이 없으신가요?{" "}
         <Link href="/signup" className="font-bold text-ink-strong">

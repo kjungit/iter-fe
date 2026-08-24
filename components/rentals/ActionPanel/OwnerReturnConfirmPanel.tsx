@@ -63,7 +63,7 @@ export function OwnerReturnConfirmPanel({ rental }: { rental: RentalDetail }) {
         disputeDescription,
       }),
     onSuccess: invalidate,
-    onError: (err) => setError(err instanceof ApiError ? err.message : "분쟁 접수에 실패했습니다."),
+    onError: (err) => setError(err instanceof ApiError ? err.message : "신고 접수에 실패했습니다."),
   });
 
   const handleFinalize = async () => {
@@ -75,11 +75,11 @@ export function OwnerReturnConfirmPanel({ rental }: { rental: RentalDetail }) {
 
   const handleSubmitDispute = async () => {
     if (!disputeReason.trim() || !disputeDescription.trim()) {
-      setError("분쟁 사유와 상세 내용을 모두 입력해주세요.");
+      setError("신고 사유와 상세 내용을 모두 입력해주세요.");
       return;
     }
     setError(null);
-    if (await confirm({ message: "이상 반납으로 접수하고 분쟁을 시작하시겠어요?" })) {
+    if (await confirm({ message: "이상 반납으로 접수하고 신고를 시작하시겠어요?" })) {
       disputeMutation.mutate();
     }
   };
@@ -95,7 +95,7 @@ export function OwnerReturnConfirmPanel({ rental }: { rental: RentalDetail }) {
       {showDisputeForm && (
         <div className="mt-4 flex flex-col gap-2.5">
           <Input
-            placeholder="분쟁 사유 (예: 렌즈 파손)"
+            placeholder="신고 사유 (예: 렌즈 파손)"
             value={disputeReason}
             onChange={(event) => setDisputeReason(event.target.value)}
           />
@@ -116,7 +116,7 @@ export function OwnerReturnConfirmPanel({ rental }: { rental: RentalDetail }) {
           onClick={() => (showDisputeForm ? handleSubmitDispute() : setShowDisputeForm(true))}
           loading={disputeMutation.isPending}
         >
-          이상 있음 · 분쟁 접수
+          이상 있음 · 신고 접수
         </Button>
         <Button variant="primary" className="flex-1" onClick={handleFinalize} loading={finalizeMutation.isPending}>
           반납 최종 확인

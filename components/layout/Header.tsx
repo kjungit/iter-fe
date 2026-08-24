@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { useAppData } from "@/lib/store/app-data-context";
 
 const NAV_ITEMS = [
@@ -20,6 +21,9 @@ export function Header() {
     await logout();
     router.push("/");
   };
+
+  // 관리자 페이지는 별도 레이아웃(app/admin/layout.tsx)에서 자체 헤더를 그린다.
+  if (pathname.startsWith("/admin")) return null;
 
   return (
     <header className="sticky top-0 z-50 h-16 border-b border-border bg-white">
@@ -48,11 +52,9 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-[18px]">
-          <Link href="/admin" className="text-[13px] font-semibold text-text-secondary">
-            관리자
-          </Link>
           {currentUser ? (
             <>
+              <NotificationBell />
               <button
                 type="button"
                 onClick={handleLogout}
