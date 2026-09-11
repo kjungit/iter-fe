@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
+import { UserRatingBadge } from "@/components/reviews/UserRatingBadge";
 import { formatCurrency, formatDateRange } from "@/lib/format";
 import { rentalStatusBadge, type BadgeInfo } from "@/lib/status";
 import type { RentalHistoryItem } from "@/lib/api/rentals";
@@ -24,11 +25,14 @@ export function RentalListItem({ item, perspective, badgeOverride }: RentalListI
       </div>
       <div className="flex-1">
         <div className="text-[14px] font-bold text-ink">{item.equipmentName}</div>
-        <div className="mt-1 text-[12.5px] text-text-secondary">
-          {formatDateRange(item.startDate, item.endDate)} ·{" "}
-          {perspective === "borrowed"
-            ? `등록자 ${item.counterparty.nickname}`
-            : `대여자 ${item.counterparty.nickname}`}
+        <div className="mt-1 flex items-center gap-1.5 text-[12.5px] text-text-secondary">
+          <span>
+            {formatDateRange(item.startDate, item.endDate)} ·{" "}
+            {perspective === "borrowed"
+              ? `등록자 ${item.counterparty.nickname}`
+              : `대여자 ${item.counterparty.nickname}`}
+          </span>
+          <UserRatingBadge userId={item.counterparty.id} />
         </div>
       </div>
       <div className="text-right">

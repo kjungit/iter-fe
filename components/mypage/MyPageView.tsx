@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { MyEquipmentCard } from "@/components/mypage/MyEquipmentCard";
+import { UserRatingBadge } from "@/components/reviews/UserRatingBadge";
 import { fetchMyEquipment } from "@/lib/api/equipment";
 import { fetchMyReports } from "@/lib/api/reports";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
@@ -44,7 +45,10 @@ export function MyPageView() {
           {currentUser.avatarInitials.slice(0, 2)}
         </div>
         <div>
-          <div className="text-[15px] font-extrabold text-ink">{currentUser.name}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[15px] font-extrabold text-ink">{currentUser.name}</span>
+            <UserRatingBadge userId={currentUser.id} />
+          </div>
           <div className="mt-0.5 text-[12.5px] text-text-secondary">{currentUser.email}</div>
         </div>
       </div>
@@ -96,6 +100,14 @@ export function MyPageView() {
       >
         <span className="text-[13.5px] font-bold text-ink">내 신고 내역</span>
         <span className="text-[12.5px] text-text-secondary">{myReportCount}건 →</span>
+      </Link>
+
+      <Link
+        href="/mypage/reviews"
+        className="mt-2.5 flex items-center justify-between rounded-md border border-border p-4"
+      >
+        <span className="text-[13.5px] font-bold text-ink">내가 쓴 리뷰</span>
+        <span className="text-[12.5px] text-text-secondary">→</span>
       </Link>
 
       <div className="mt-6 flex gap-4">
