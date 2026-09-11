@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { Pager } from "@/components/ui/Pager";
+import { UserRatingBadge } from "@/components/reviews/UserRatingBadge";
 import { formatDateRange } from "@/lib/format";
 import { fetchReturnTargets } from "@/lib/api/rentals";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
@@ -50,9 +51,12 @@ export function ReturnsView() {
             </div>
             <div className="flex-1">
               <div className="text-[14px] font-bold text-ink">{target.equipmentName}</div>
-              <div className="mt-1 text-[12.5px] text-text-secondary">
-                {formatDateRange(target.endDate, target.returnDate ?? target.endDate)} · 대여자{" "}
-                {target.renter.nickname}
+              <div className="mt-1 flex items-center gap-1.5 text-[12.5px] text-text-secondary">
+                <span>
+                  {formatDateRange(target.endDate, target.returnDate ?? target.endDate)} · 대여자{" "}
+                  {target.renter.nickname}
+                </span>
+                <UserRatingBadge userId={target.renter.id} />
               </div>
             </div>
           </Link>

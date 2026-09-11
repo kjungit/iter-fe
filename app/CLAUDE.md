@@ -42,9 +42,13 @@
 | 16 | 관리자 목록 | `/admin` (`?tab=users\|equipment\|reports\|payments\|history`, `(dashboard)` 그룹 — 가드 적용) |
 | 17 | 관리자 상세 | `/admin/[entity]/[id]` (`entity: users\|equipment\|reports\|payments`, `(dashboard)` 그룹 — 가드 적용) |
 | 18 | 관리자 로그인 | `/admin/login` (아이디/비밀번호, `(dashboard)` 그룹 밖 — 가드 미적용) |
+| 19 | 리뷰 작성 | `/rentals/[id]/review` |
+| 20 | 내가 쓴 리뷰 | `/mypage/reviews` |
 
-리뷰(Review)·분쟁(Dispute) 화면은 BE에 API 자체가 없어(엔티티만 존재, 컨트롤러 없음) 제거된
-상태다 — 백엔드에 해당 엔드포인트가 생기기 전까지는 다시 추가하지 않는다.
+분쟁(Dispute) 화면은 BE에 API 자체가 없어(엔티티만 존재, 컨트롤러 없음) 제거된 상태다 —
+백엔드에 해당 엔드포인트가 생기기 전까지는 다시 추가하지 않는다. 리뷰(Review)는
+`RentalReview`(`lib/api/reviews.ts`) 실 API가 생겨 위 19/20번 화면으로 되살렸다 — 상세 규칙은
+`lib/CLAUDE.md` 참고.
 
 - 탭/필터는 모두 `searchParams` 기반 (뒤로가기·공유 가능해야 함). 페이지는 `params`/
   `searchParams`를 Promise로 받는 canary 컨벤션 준수 (`PageProps<'/path'>` 헬퍼 사용).

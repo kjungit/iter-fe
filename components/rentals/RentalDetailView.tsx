@@ -7,6 +7,7 @@ import { RentalTimeline } from "@/components/rentals/RentalTimeline";
 import { TransactionDetailBlock } from "@/components/rentals/TransactionDetailBlock";
 import { Badge } from "@/components/ui/Badge";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
+import { UserRatingBadge } from "@/components/reviews/UserRatingBadge";
 import { formatDateRange } from "@/lib/format";
 import { rentalRole, rentalStatusBadge } from "@/lib/status";
 import { fetchRentalDetail } from "@/lib/api/rentals";
@@ -42,7 +43,8 @@ export function RentalDetailView({ rentalId }: { rentalId: string }) {
   }
 
   const role = rentalRole(rental, currentUser.id);
-  const counterpartName = role === "owner" ? rental.renter.nickname : rental.owner.nickname;
+  const counterpart = role === "owner" ? rental.renter : rental.owner;
+  const counterpartName = counterpart.nickname;
   const badge = rentalStatusBadge(rental.status);
 
   return (
@@ -61,8 +63,11 @@ export function RentalDetailView({ rentalId }: { rentalId: string }) {
         </div>
         <div className="flex-1">
           <div className="text-[15px] font-extrabold text-ink">{rental.equipment.equipmentName}</div>
-          <div className="mt-1 text-[12.5px] text-text-secondary">
-            {formatDateRange(rental.startDate, rental.endDate)} · {counterpartName}
+          <div className="mt-1 flex items-center gap-1.5 text-[12.5px] text-text-secondary">
+            <span>
+              {formatDateRange(rental.startDate, rental.endDate)} · {counterpartName}
+            </span>
+            <UserRatingBadge userId={counterpart.id} />
           </div>
         </div>
         <Badge label={badge.label} palette={badge.palette} size="md" />

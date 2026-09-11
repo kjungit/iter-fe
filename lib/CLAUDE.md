@@ -23,6 +23,8 @@ lib/
     rentals.ts        /api/v1/rentals 전체(요청~반납 상태머신, 배송/수령/반납증빙)
     payments.ts       토스페이먼츠 ready/confirm
     reports.ts        /api/v1/reports (일반 사용자 신고 제출/목록/상세)
+    reviews.ts        /api/v1/rentals/{id}/reviews, /api/v1/users/{id}/reviews/written(+stats) —
+                      거래 완료 후 당사자끼리 남기는 리뷰(작성/거래별 조회/내가 쓴 리뷰/평균 평점)
     admin.ts          /api/v1/admin/** 전체(회원/장비/신고/결제/처리이력)
     notifications.ts  /api/v1/notifications 전체 + SSE 티켓 발급
     s3-upload.ts      presigned URL로 S3 직접 PUT
@@ -59,12 +61,30 @@ RECEIVED, RENTING, RETURN_REQUESTED, RETURNING, RETURNED, DISPUTED, COMPLETED`. 
 있으므로 화면에서 재계산하지 않는다. `overdueDays`도 BE가 계산해서 내려주는 값을 그대로 쓴다.
 
 ## 백엔드에 API가 없는 도메인 (되살리지 말 것)
-- **리뷰(Review)**, **분쟁(Dispute)**: BE에 엔티티/리포지토리만 있고 컨트롤러·서비스가 없다.
-  이전에 목데이터로 흉내낸 UI(리뷰 작성 폼, 관리자 분쟁 탭)가 있었으나 실제로 아무것도
-  저장/전송하지 않는 가짜 기능이라 전부 제거했다. BE에 엔드포인트가 실제로 추가되기 전까지는
-  다시 만들지 않는다. (참고: 반납 확인 시 "이상 있음"으로 처리하면 `RentalStatus.DISPUTED`로
-  전이되는 기능은 `ReturnApiController`/`ReturnService`에 실제로 구현되어 있는 별개 기능 —
-  이건 그대로 유지.)
+- **분쟁(Dispute)**: BE에 엔티티/리포지토리만 있고 컨트롤러·서비스가 없다. 이전에 목데이터로
+  흉내낸 관리자 분쟁 탭이 있었으나 실제로 아무것도 저장/전송하지 않는 가짜 기능이라 제거했다.
+  BE에 엔드포인트가 실제로 추가되기 전까지는 다시 만들지 않는다. (참고: 반납 확인 시 "이상
+  있음"으로 처리하면 `RentalStatus.DISPUTED`로 전이되는 기능은 `ReturnApiController`/
+  `ReturnService`에 실제로 구현되어 있는 별개 기능 — 이건 그대로 유지.)
+- **리뷰(Review)는 더 이상 여기 해당하지 않는다** — `RentalReview` 실 API가 추가되어
+  `lib/api/reviews.ts`로 연동했다. 아래 "리뷰 작성 규칙" 참고.
+
+## 리뷰(Review) 작성 규칙 (임의로 바꾸지 말 것)
+`RentalReview`는 장비가 아니라 **거래 상대방(사용자)** 을 대상으로 하는 양방향 리뷰다 —
+`RentalReviewService.resolveRevieweeId` 기준:
+- 대여자가 쓰면 대상은 등록자, 등록자가 쓰면 대상은 대여자 — `POST /rentals/{id}/reviews`
+  하나로 양쪽 다 처리되고 BE가 principal로 방향을 판별한다(프론트에서 "누구에게" 지정 안 함).
+- `RentalStatus.COMPLETED`가 아니면 거절(409 `REVIEW_NOT_ALLOWED_STATUS`) — `RETURNED`도 아직
+  불가, `COMPLETED`에서만 가능.
+- 거래당 `(rentalId, reviewerId)` 유일 — 한 사람은 같은 거래에 1건만(409
+  `REVIEW_ALREADY_EXISTS`), 두 당사자는 각자 1건씩이라 거래당 최대 2건.
+- `rating`은 1~5 정수, `content`는 공백 아님·최대 1000자.
+- 수정/삭제 엔드포인트가 없다 — 작성한 리뷰는 되돌릴 수 없으므로 프론트는 제출 전 반드시
+  `useConfirm()`으로 확인시킨다(`components/rentals/ReviewForm.tsx` 참고).
+- 사용자 평균 평점(`GET /users/{id}/reviews/stats`)은 principal 검증 없이 어떤 userId든 조회
+  가능한 범용 엔드포인트 — 다른 사용자 표시 지점과 "내 프로필" 모두 `UserRatingBadge` 하나로
+  재사용한다. 장비(Equipment) 자체의 `averageRating`/`reviewCount`는 별개 필드이며 BE에서
+  항상 `0.0, 0`으로 하드코딩되어 있으니 섞어 쓰지 않는다.
 
 ## 관리자 상태 전이 규칙 (임의로 바꾸지 말 것)
 관리자 상태 변경 API들은 겉보기와 달리 허용되는 전이가 좁게 제한되어 있다 — UI는 항상 "현재

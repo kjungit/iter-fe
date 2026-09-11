@@ -24,6 +24,7 @@ import { ApiError } from "@/lib/api/client";
 import { equipmentStatusBadge } from "@/lib/status";
 import { useAppData } from "@/lib/store/app-data-context";
 import { useConfirm } from "@/lib/store/confirm-modal-context";
+import { UserRatingBadge } from "@/components/reviews/UserRatingBadge";
 
 interface EquipmentDetailViewProps {
   equipmentId: string;
@@ -185,6 +186,7 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
               size="md"
             />
             <Badge label={`등록자: ${item.owner.nickname}`} palette="neutral" size="md" />
+            <UserRatingBadge userId={item.owner.id} />
             {isOwner && (
               <Badge
                 label={equipmentStatusBadge(item.status).label}
