@@ -2,6 +2,7 @@ import type { RentalStatus } from "@/lib/api/rentals";
 import type { EquipmentStatus } from "@/lib/api/equipment";
 import type { ReportStatus } from "@/lib/api/reports";
 import type { PaymentStatus, UserStatus } from "@/lib/api/admin";
+import type { ChatRoomStage } from "@/lib/api/chat";
 
 export type BadgePalette =
   | "neutral"
@@ -52,6 +53,12 @@ const EQUIPMENT_STATUS_BADGE: Record<EquipmentStatus, BadgeInfo> = {
   DELETED: { label: "삭제됨", palette: "neutral" },
 };
 
+const CHAT_ROOM_STAGE_BADGE: Record<ChatRoomStage, BadgeInfo> = {
+  INQUIRY: { label: "문의중", palette: "neutral" },
+  TRADE: { label: "거래중", palette: "success" },
+  CLOSED: { label: "종료", palette: "neutral" },
+};
+
 const PAYMENT_STATUS_BADGE: Record<PaymentStatus, BadgeInfo> = {
   PENDING: { label: "결제대기", palette: "neutral" },
   PAID: { label: "결제완료", palette: "success" },
@@ -78,6 +85,10 @@ export function equipmentStatusBadge(status: EquipmentStatus): BadgeInfo {
 
 export function paymentStatusBadge(status: PaymentStatus): BadgeInfo {
   return PAYMENT_STATUS_BADGE[status];
+}
+
+export function chatRoomStageBadge(stage: ChatRoomStage): BadgeInfo {
+  return CHAT_ROOM_STAGE_BADGE[stage];
 }
 
 export const RENTAL_TIMELINE_LABELS = [

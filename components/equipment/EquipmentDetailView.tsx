@@ -21,6 +21,7 @@ import {
   updateEquipmentStatus,
 } from "@/lib/api/equipment";
 import { ApiError } from "@/lib/api/client";
+import { startEquipmentInquiry } from "@/lib/api/chat";
 import { equipmentStatusBadge } from "@/lib/status";
 import { useAppData } from "@/lib/store/app-data-context";
 import { useConfirm } from "@/lib/store/confirm-modal-context";
@@ -37,6 +38,7 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
   const { currentUser } = useAppData();
   const [range, setRange] = useState<DateRange>({ start: null, end: null });
   const [ownerError, setOwnerError] = useState<string | null>(null);
+  const [inquiryError, setInquiryError] = useState<string | null>(null);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
 
   const { data: item, isLoading, isError } = useQuery({
@@ -76,6 +78,13 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
       router.push("/mypage");
     },
     onError: (err) => setOwnerError(err instanceof ApiError ? err.message : "삭제에 실패했습니다."),
+  });
+
+  const inquiryMutation = useMutation({
+    mutationFn: () => startEquipmentInquiry(equipmentId),
+    onSuccess: (roomId) => router.push(`/mypage/messages/${roomId}`),
+    onError: (err) =>
+      setInquiryError(err instanceof ApiError ? err.message : "문의를 시작하지 못했습니다."),
   });
 
   if (isLoading) {
@@ -302,6 +311,22 @@ export function EquipmentDetailView({ equipmentId }: EquipmentDetailViewProps) {
               >
                 대여 요청하기
               </Button>
+
+              {currentUser && (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="mt-2.5 rounded-md"
+                  loading={inquiryMutation.isPending}
+                  onClick={() => inquiryMutation.mutate()}
+                >
+                  판매자에게 문의하기
+                </Button>
+              )}
+              {inquiryError && (
+                <p className="mt-2.5 text-[12.5px] text-badge-danger-fg">{inquiryError}</p>
+              )}
 
               <div className="mt-7">
                 <h2 className="text-[13px] font-bold text-ink">안내 사항</h2>

@@ -103,6 +103,14 @@ export function MyPageView() {
       </Link>
 
       <Link
+        href="/mypage/messages"
+        className="mt-2.5 flex items-center justify-between rounded-md border border-border p-4"
+      >
+        <span className="text-[13.5px] font-bold text-ink">내 채팅</span>
+        <span className="text-[12.5px] text-text-secondary">→</span>
+      </Link>
+
+      <Link
         href="/mypage/reviews"
         className="mt-2.5 flex items-center justify-between rounded-md border border-border p-4"
       >
