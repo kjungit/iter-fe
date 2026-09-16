@@ -47,7 +47,7 @@ function toChatMessage(frame: OutgoingFrame): ChatMessage {
 export function useChatSocket(
   roomId: string | null,
   options: UseChatSocketOptions,
-): { send: (content: string) => void } {
+): { send: (content: string) => boolean } {
   const socketRef = useRef<WebSocket | null>(null);
   const cancelledRef = useRef(false);
   const handlersRef = useRef(options);
@@ -102,10 +102,10 @@ export function useChatSocket(
 
   const send = useCallback((content: string) => {
     const socket = socketRef.current;
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      const frame: IncomingFrame = { type: "SEND", content };
-      socket.send(JSON.stringify(frame));
-    }
+    if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    const frame: IncomingFrame = { type: "SEND", content };
+    socket.send(JSON.stringify(frame));
+    return true;
   }, []);
 
   return { send };
