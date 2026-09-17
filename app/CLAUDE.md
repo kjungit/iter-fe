@@ -45,6 +45,7 @@
 | 19 | 리뷰 작성 | `/rentals/[id]/review` |
 | 20 | 내가 쓴 리뷰 | `/mypage/reviews` |
 | 21 | 내 채팅 목록 | `/mypage/messages` |
+| 22 | 채팅방 상세 | `/mypage/messages/[roomId]` |
 
 채팅(Chat)은 모노레포 전환으로 신규 분리된 `apps:chat`(포트 8081, 티켓 인증) 연동 화면이다 —
 장비 상세의 "판매자에게 문의하기"에서 시작되고, 대여(rental)와 무관하게 장비+문의자 단위로
