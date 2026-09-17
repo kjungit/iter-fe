@@ -59,6 +59,8 @@ interface RequestOptions {
   csrf?: boolean;
   /** 401 재시도 루프 방지용 내부 플래그 */
   skipAuthRetry?: boolean;
+  /** AI 작업처럼 화면을 벗어나면 요청을 취소해야 하는 경우에만 전달 */
+  signal?: AbortSignal;
 }
 
 export async function parseErrorResponse(response: Response): Promise<ApiError> {
@@ -81,7 +83,7 @@ export async function parseErrorResponse(response: Response): Promise<ApiError> 
 }
 
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, csrf = false, skipAuthRetry = false } = options;
+  const { method = "GET", body, csrf = false, skipAuthRetry = false, signal } = options;
 
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -96,6 +98,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     headers,
     credentials: "include",
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal,
   });
 
   if (response.status === 401 && !skipAuthRetry && path !== "/api/v1/auth/refresh") {

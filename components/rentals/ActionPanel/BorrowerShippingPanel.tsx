@@ -7,18 +7,19 @@ import { PhotoUploadSlot } from "@/components/ui/PhotoUploadSlot";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
-import { PRODUCT_CONDITIONS, PRODUCT_CONDITION_LABELS, type ProductCondition } from "@/lib/api/equipment";
+import { CAPTURE_VIEWS, PRODUCT_CONDITIONS, PRODUCT_CONDITION_LABELS, type ProductCondition } from "@/lib/api/equipment";
 import { putToPresignedUrl } from "@/lib/api/s3-upload";
 import { compressImage } from "@/lib/image-compress";
 import { ApiError } from "@/lib/api/client";
 import { createReceipt, requestEvidenceImagePresignedUrls } from "@/lib/api/rentals";
 import type { RentalDetail } from "@/lib/api/rentals";
 
-const PHOTO_SLOT_COUNT = 4;
+const CAPTURE_VIEW_LABELS = { FRONT: "정면", SIDE: "측면", REAR: "후면" } as const;
+type EvidencePhoto = { objectKey: string; viewUrl: string };
 
 export function BorrowerShippingPanel({ rental }: { rental: RentalDetail }) {
   const queryClient = useQueryClient();
-  const [photos, setPhotos] = useState<(string | null)[]>(Array(PHOTO_SLOT_COUNT).fill(null));
+  const [photos, setPhotos] = useState<(EvidencePhoto | null)[]>(Array(CAPTURE_VIEWS.length).fill(null));
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [condition, setCondition] = useState<ProductCondition>("NORMAL");
   const [memo, setMemo] = useState("");
@@ -31,7 +32,9 @@ export function BorrowerShippingPanel({ rental }: { rental: RentalDetail }) {
       createReceipt(rental.rentalId, {
         productCondition: condition,
         conditionDetail: memo,
-        imageUrls: photos.filter((url): url is string => url !== null),
+        images: photos.flatMap((photo, index) => photo ? [{
+          captureView: CAPTURE_VIEWS[index], objectKey: photo.objectKey,
+        }] : []),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rental", "detail", rental.rentalId] });
@@ -41,6 +44,8 @@ export function BorrowerShippingPanel({ rental }: { rental: RentalDetail }) {
   });
 
   const openFilePicker = (index: number) => {
+    if (uploadingIndex !== null) return;
+
     setActiveSlot(index);
     fileInputRef.current?.click();
   };
@@ -55,11 +60,13 @@ export function BorrowerShippingPanel({ rental }: { rental: RentalDetail }) {
     setError(null);
     try {
       const compressed = await compressImage(file);
-      const [upload] = await requestEvidenceImagePresignedUrls([{ contentType: compressed.type }]);
+      const [upload] = await requestEvidenceImagePresignedUrls(rental.rentalId, [
+        { captureView: CAPTURE_VIEWS[slotIndex], contentType: compressed.type, size: compressed.size },
+      ]);
       await putToPresignedUrl(upload.uploadUrl, compressed, upload.requiredHeaders);
       setPhotos((prev) => {
         const next = [...prev];
-        next[slotIndex] = upload.publicUrl;
+        next[slotIndex] = { objectKey: upload.objectKey, viewUrl: upload.viewUrl };
         return next;
       });
     } catch (err) {
@@ -70,14 +77,15 @@ export function BorrowerShippingPanel({ rental }: { rental: RentalDetail }) {
     }
   };
 
-  const photoUrls = photos.filter((url): url is string => url !== null);
+  const uploadedPhotos = photos.filter((photo): photo is EvidencePhoto => photo !== null);
 
   return (
     <PanelShell>
       <h2 className="text-[14px] font-bold text-ink">수령 상태 확인</h2>
       <p className="mt-2 text-[12.5px] text-text-secondary">
-        받은 장비 사진과 상태를 기록해 두면 반납 시 비교 근거가 됩니다.
+        받은 장비의 정면·측면·후면을 등록하면 반납 시 같은 방향끼리 비교합니다.
       </p>
+      <p className="mt-1 text-[12px] text-text-tertiary">측면은 제품 정면을 바라본 기준 오른쪽 면을 촬영해 주세요.</p>
 
       <input
         ref={fileInputRef}
@@ -87,14 +95,13 @@ export function BorrowerShippingPanel({ rental }: { rental: RentalDetail }) {
         onChange={handleFileChange}
       />
 
-      <div className="mt-4 grid grid-cols-4 gap-2">
-        {photos.map((url, index) => (
-          <PhotoUploadSlot
-            key={index}
-            src={url}
-            loading={uploadingIndex === index}
-            onClick={() => openFilePicker(index)}
-          />
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        {photos.map((photo, index) => (
+          <div key={CAPTURE_VIEWS[index]}>
+            <p className="mb-1 text-center text-xs font-semibold">{CAPTURE_VIEW_LABELS[CAPTURE_VIEWS[index]]} (필수)</p>
+            <PhotoUploadSlot src={photo?.viewUrl ?? null} loading={uploadingIndex === index}
+              onClick={() => openFilePicker(index)} />
+          </div>
         ))}
       </div>
       <Select
@@ -120,9 +127,11 @@ export function BorrowerShippingPanel({ rental }: { rental: RentalDetail }) {
         variant="primary"
         fullWidth
         className="mt-4"
-        disabled={photoUrls.length === 0}
+        disabled={uploadedPhotos.length !== CAPTURE_VIEWS.length || uploadingIndex !== null}
         loading={mutation.isPending}
         onClick={() => {
+          if (uploadingIndex !== null) return;
+
           setError(null);
           mutation.mutate();
         }}

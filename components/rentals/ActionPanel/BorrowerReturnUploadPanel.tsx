@@ -7,7 +7,7 @@ import { PhotoUploadSlot } from "@/components/ui/PhotoUploadSlot";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { PanelShell } from "@/components/rentals/ActionPanel/PanelShell";
-import { PRODUCT_CONDITIONS, PRODUCT_CONDITION_LABELS, type ProductCondition } from "@/lib/api/equipment";
+import { CAPTURE_VIEWS, PRODUCT_CONDITIONS, PRODUCT_CONDITION_LABELS, type ProductCondition } from "@/lib/api/equipment";
 import { putToPresignedUrl } from "@/lib/api/s3-upload";
 import { compressImage } from "@/lib/image-compress";
 import { ApiError } from "@/lib/api/client";
@@ -15,12 +15,13 @@ import { createReturnEvidence, requestEvidenceImagePresignedUrls } from "@/lib/a
 import { useConfirm } from "@/lib/store/confirm-modal-context";
 import type { RentalDetail } from "@/lib/api/rentals";
 
-const PHOTO_SLOT_COUNT = 4;
+const CAPTURE_VIEW_LABELS = { FRONT: "정면", SIDE: "측면", REAR: "후면" } as const;
+type EvidencePhoto = { objectKey: string; viewUrl: string };
 
 export function BorrowerReturnUploadPanel({ rental }: { rental: RentalDetail }) {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const [photos, setPhotos] = useState<(string | null)[]>(Array(PHOTO_SLOT_COUNT).fill(null));
+  const [photos, setPhotos] = useState<(EvidencePhoto | null)[]>(Array(CAPTURE_VIEWS.length).fill(null));
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [condition, setCondition] = useState<ProductCondition>("NORMAL");
   const [memo, setMemo] = useState("");
@@ -33,7 +34,9 @@ export function BorrowerReturnUploadPanel({ rental }: { rental: RentalDetail }) 
       createReturnEvidence(rental.rentalId, {
         productCondition: condition,
         conditionDetail: memo,
-        imageUrls: photos.filter((url): url is string => url !== null),
+        images: photos.flatMap((photo, index) => photo ? [{
+          captureView: CAPTURE_VIEWS[index], objectKey: photo.objectKey,
+        }] : []),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rental", "detail", rental.rentalId] });
@@ -43,6 +46,8 @@ export function BorrowerReturnUploadPanel({ rental }: { rental: RentalDetail }) 
   });
 
   const openFilePicker = (index: number) => {
+    if (uploadingIndex !== null) return;
+
     setActiveSlot(index);
     fileInputRef.current?.click();
   };
@@ -57,11 +62,13 @@ export function BorrowerReturnUploadPanel({ rental }: { rental: RentalDetail }) 
     setError(null);
     try {
       const compressed = await compressImage(file);
-      const [upload] = await requestEvidenceImagePresignedUrls([{ contentType: compressed.type }]);
+      const [upload] = await requestEvidenceImagePresignedUrls(rental.rentalId, [
+        { captureView: CAPTURE_VIEWS[slotIndex], contentType: compressed.type, size: compressed.size },
+      ]);
       await putToPresignedUrl(upload.uploadUrl, compressed, upload.requiredHeaders);
       setPhotos((prev) => {
         const next = [...prev];
-        next[slotIndex] = upload.publicUrl;
+        next[slotIndex] = { objectKey: upload.objectKey, viewUrl: upload.viewUrl };
         return next;
       });
     } catch (err) {
@@ -72,9 +79,11 @@ export function BorrowerReturnUploadPanel({ rental }: { rental: RentalDetail }) 
     }
   };
 
-  const photoUrls = photos.filter((url): url is string => url !== null);
+  const uploadedPhotos = photos.filter((photo): photo is EvidencePhoto => photo !== null);
 
   const handleSubmit = async () => {
+    if (uploadingIndex !== null || uploadedPhotos.length !== CAPTURE_VIEWS.length) return;
+
     setError(null);
     if (await confirm({ message: "반납 신청을 제출하시겠어요? 제출 후에는 되돌릴 수 없습니다." })) {
       mutation.mutate();
@@ -85,8 +94,9 @@ export function BorrowerReturnUploadPanel({ rental }: { rental: RentalDetail }) 
     <PanelShell>
       <h2 className="text-[14px] font-bold text-ink">반납 전 상태 등록</h2>
       <p className="mt-2 text-[12.5px] text-text-secondary">
-        반납 직전 사진과 상태를 등록하면 수령 시점 기록과 자동 비교됩니다.
+        반납 직전의 정면·측면·후면 사진은 수령 당시 같은 방향의 사진과 자동 비교됩니다.
       </p>
+      <p className="mt-1 text-[12px] text-text-tertiary">측면은 제품 정면을 바라본 기준 오른쪽 면을 촬영해 주세요.</p>
 
       <input
         ref={fileInputRef}
@@ -96,14 +106,13 @@ export function BorrowerReturnUploadPanel({ rental }: { rental: RentalDetail }) 
         onChange={handleFileChange}
       />
 
-      <div className="mt-4 grid grid-cols-4 gap-2">
-        {photos.map((url, index) => (
-          <PhotoUploadSlot
-            key={index}
-            src={url}
-            loading={uploadingIndex === index}
-            onClick={() => openFilePicker(index)}
-          />
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        {photos.map((photo, index) => (
+          <div key={CAPTURE_VIEWS[index]}>
+            <p className="mb-1 text-center text-xs font-semibold">{CAPTURE_VIEW_LABELS[CAPTURE_VIEWS[index]]} (필수)</p>
+            <PhotoUploadSlot src={photo?.viewUrl ?? null} loading={uploadingIndex === index}
+              onClick={() => openFilePicker(index)} />
+          </div>
         ))}
       </div>
       <Select
@@ -129,7 +138,7 @@ export function BorrowerReturnUploadPanel({ rental }: { rental: RentalDetail }) 
         variant="primary"
         fullWidth
         className="mt-4"
-        disabled={photoUrls.length === 0}
+        disabled={uploadedPhotos.length !== CAPTURE_VIEWS.length || uploadingIndex !== null}
         loading={mutation.isPending}
         onClick={handleSubmit}
       >

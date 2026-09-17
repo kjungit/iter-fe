@@ -225,6 +225,9 @@ interface AdminReportDetailDto {
   };
   adminMemo: string | null;
   updatedAt: string;
+  evidenceGroups: Array<{ phase: "LISTING" | "RECEIPT" | "RETURN"; label: string; images: Array<{
+    captureView: "FRONT" | "SIDE" | "REAR" | null; imageUrl: string;
+  }> }>;
 }
 
 export interface AdminReportDetail {
@@ -239,6 +242,9 @@ export interface AdminReportDetail {
   resolvedAt: string | null;
   adminMemo: string | null;
   updatedAt: string;
+  evidenceGroups: Array<{ phase: "LISTING" | "RECEIPT" | "RETURN"; label: string; images: Array<{
+    captureView: "FRONT" | "SIDE" | "REAR" | null; imageUrl: string;
+  }> }>;
 }
 
 export async function fetchAdminReports(params: {
@@ -293,6 +299,7 @@ export async function fetchAdminReportDetail(reportId: string): Promise<AdminRep
     resolvedAt: dto.report.resolvedAt,
     adminMemo: dto.adminMemo,
     updatedAt: dto.updatedAt,
+    evidenceGroups: dto.evidenceGroups ?? [],
   };
 }
 

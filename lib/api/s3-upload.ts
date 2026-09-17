@@ -3,11 +3,13 @@ export async function putToPresignedUrl(
   uploadUrl: string,
   file: File | Blob,
   requiredHeaders: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(uploadUrl, {
     method: "PUT",
     headers: requiredHeaders,
     body: file,
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
   });
   if (!response.ok) {
     throw new Error(`이미지 업로드에 실패했습니다. (${response.status})`);
