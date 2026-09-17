@@ -4,11 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { ChatNavBadge } from "@/components/layout/ChatNavBadge";
 import { useAppData } from "@/lib/store/app-data-context";
 
 const NAV_ITEMS = [
   { href: "/", label: "홈" },
   { href: "/rentals", label: "대여내역" },
+  { href: "/chat", label: "채팅" },
   { href: "/equipment/new", label: "장비 등록" },
 ];
 
@@ -41,11 +43,12 @@ export function Header() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "text-[14px] font-semibold",
+                    "flex items-center text-[14px] font-semibold",
                     active ? "text-ink-strong" : "text-text-secondary",
                   )}
                 >
                   {item.label}
+                  {item.href === "/chat" && currentUser && <ChatNavBadge />}
                 </Link>
               );
             })}

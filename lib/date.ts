@@ -47,6 +47,17 @@ export function parseISODate(value: string): Date {
   return new Date(year, month - 1, day);
 }
 
+/**
+ * `parseISODate`는 날짜만 취하려고 의도적으로 시각을 버리므로(주석 참고), 채팅 메시지 시각처럼
+ * 시:분까지 필요한 표시에는 이 함수를 쓴다. "T" 이후가 없으면 자정으로 취급한다.
+ */
+export function parseISODateTime(value: string): Date {
+  const [datePart, timePart = "00:00:00"] = value.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute, second] = timePart.split(":").map((part) => Number(part.split(".")[0]));
+  return new Date(year, month - 1, day, hour, minute, second || 0);
+}
+
 export function toISODate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");

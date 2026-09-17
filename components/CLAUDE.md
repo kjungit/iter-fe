@@ -31,6 +31,17 @@ components/
 - `admin/ReportAnalysisPanel.tsx`: `AdminDetailView.tsx`의 `AdminReportDetail`에 마운트.
   상세 규칙은 `lib/CLAUDE.md`의 "AI 보조 기능 규칙" 참고.
 
+## 채팅(Chat) 화면 (equipment 상세 "채팅으로 문의하기"에서 진입, 임의로 새 위치에 옮기지 말 것)
+- `chat/ChatRoomListView.tsx` / `chat/ChatRoomListItem.tsx`: `fetchChatRooms()` 폴링(20s) 기반
+  목록. `/chat`에 마운트.
+- `chat/ChatRoomView.tsx`: `/chat/[roomId]`에 마운트. `useInfiniteQuery` + `useChatSocket`
+  병합으로 메시지 렌더링, stage/뮤트에 따라 컴포저 비활성화.
+- `chat/ChatMessageThread.tsx` / `chat/ChatMessageBubble.tsx` / `chat/ChatComposer.tsx`: 스레드
+  전용 프레젠테이션 — 도메인 로직(발신자 비교, masked 처리)이 있어 `ui/`가 아니라 이 폴더에 둔다.
+- `layout/ChatNavBadge.tsx`: Header nav "채팅" 옆 안읽음 숫자 배지, `["chat","rooms"]` 쿼리를
+  목록 화면과 공유.
+- 상세 API/소켓 규칙은 `lib/CLAUDE.md`의 "채팅(Chat) 연동 규칙" 참고.
+
 ## 컨벤션
 - 모든 색상·spacing·radius·font-size는 Tailwind 유틸/`@theme` 토큰 사용, 인라인 style이나
   임의 값(`[#123456]` 등) 금지 — 핸드오프 값은 전부 토큰화되어 있어야 함.

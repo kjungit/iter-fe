@@ -2,6 +2,7 @@ import type { RentalStatus } from "@/lib/api/rentals";
 import type { EquipmentStatus } from "@/lib/api/equipment";
 import type { ReportStatus } from "@/lib/api/reports";
 import type { PaymentStatus, UserStatus } from "@/lib/api/admin";
+import type { ChatRoomStage } from "@/lib/api/chat";
 
 export type BadgePalette =
   | "neutral"
@@ -30,6 +31,16 @@ const RENTAL_STATUS_BADGE: Record<RentalStatus, BadgeInfo> = {
   DISPUTED: { label: "신고중", palette: "danger" },
   COMPLETED: { label: "완료", palette: "done" },
 };
+
+const CHAT_ROOM_STAGE_BADGE: Record<ChatRoomStage, BadgeInfo> = {
+  INQUIRY: { label: "문의중", palette: "progress" },
+  TRADE: { label: "거래중", palette: "success" },
+  CLOSED: { label: "종료됨", palette: "neutral" },
+};
+
+export function chatRoomStageBadge(stage: ChatRoomStage): BadgeInfo {
+  return CHAT_ROOM_STAGE_BADGE[stage];
+}
 
 const REPORT_STATUS_BADGE: Record<ReportStatus, BadgeInfo> = {
   RECEIVED: { label: "접수", palette: "neutral" },
