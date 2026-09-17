@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chatRoomStageBadge,
   rentalRole,
   rentalTimelineStage,
   timelineConnectorState,
@@ -55,5 +56,13 @@ describe("rentalRole", () => {
 
   it("returns null when the user is neither party", () => {
     expect(rentalRole(rental, "u3")).toBeNull();
+  });
+});
+
+describe("chatRoomStageBadge", () => {
+  it("maps every chat room stage to a badge", () => {
+    expect(chatRoomStageBadge("INQUIRY")).toEqual({ label: "문의중", palette: "progress" });
+    expect(chatRoomStageBadge("TRADE")).toEqual({ label: "거래중", palette: "success" });
+    expect(chatRoomStageBadge("CLOSED")).toEqual({ label: "종료됨", palette: "neutral" });
   });
 });
