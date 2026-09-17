@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { ChatBell } from "@/components/layout/ChatBell";
 import { useAppData } from "@/lib/store/app-data-context";
 
 const NAV_ITEMS = [
@@ -54,6 +55,7 @@ export function Header() {
         <div className="flex items-center gap-[18px]">
           {currentUser ? (
             <>
+              <ChatBell />
               <NotificationBell />
               <button
                 type="button"
