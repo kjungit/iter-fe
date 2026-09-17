@@ -28,6 +28,14 @@ lib/
     admin.ts          /api/v1/admin/** 전체(회원/장비/신고/결제/처리이력)
     notifications.ts  /api/v1/notifications 전체 + SSE 티켓 발급
     s3-upload.ts      presigned URL로 S3 직접 PUT
+    equipment-draft.ts     AI 장비 등록 초안 — POST/GET /api/v1/ai/equipment-drafts[...],
+                           비동기 작업(job) polling(react-query 아닌 수동 poll 루프)
+    condition-analysis.ts  AI 수령·반납 상태비교 — /api/v1/rentals/{id}/condition-analysis,
+                           react-query refetchInterval로 polling
+    report-analysis.ts     AI 신고 분석(관리자용) — /api/v1/admin/reports/{id}/ai-analysis,
+                           react-query refetchInterval로 polling
+  equipment-registration.ts  장비 사진 업로드(presigned URL 재발급 포함)·AI 초안→폼 patch
+                             변환 헬퍼. `EquipmentRegisterForm`/`EquipmentDraftPanel` 전용.
   hooks/
     useNotificationStream.ts  SSE 구독 훅(티켓 재발급 기반 수동 재연결)
   auth/
@@ -85,6 +93,29 @@ RECEIVED, RENTING, RETURN_REQUESTED, RETURNING, RETURNED, DISPUTED, COMPLETED`. 
   가능한 범용 엔드포인트 — 다른 사용자 표시 지점과 "내 프로필" 모두 `UserRatingBadge` 하나로
   재사용한다. 장비(Equipment) 자체의 `averageRating`/`reviewCount`는 별개 필드이며 BE에서
   항상 `0.0, 0`으로 하드코딩되어 있으니 섞어 쓰지 않는다.
+
+## 장비/증빙 사진 — CAPTURE_VIEW(정면/측면/후면) 규칙 (임의로 바꾸지 말 것)
+AI 상태비교(반납 시 수령 사진과 자동 비교)가 "같은 방향끼리" 비교할 수 있어야 하므로, 장비
+등록 사진과 대여 수령/반납 증빙 사진은 자유 슬롯이 아니라 `CAPTURE_VIEWS =
+["FRONT","SIDE","REAR"]`(`lib/api/equipment.ts`) 3장이 **항상 정확히** 필요하다(대표
+이미지는 항상 FRONT). `EquipmentCreateInput.images`/`Receipt·ReturnEvidenceCreateInput.images`
+는 전부 `{captureView, objectKey}[]` 형태이고, 개수가 안 맞으면 BE가 거절한다 — 임의로 슬롯
+수를 늘리거나 줄이지 않는다. 증빙 사진 presigned URL은 `requestEvidenceImagePresignedUrls(
+rentalId, files)`처럼 rentalId scoped로 발급받고(장비 등록 쪽은 `requestEquipmentImage
+PresignedUrls`), 업로드 직후 미리보기는 `viewUrl`(비공개, 만료됨)을 쓰고 최종 제출은
+`objectKey`만 보낸다 — `publicUrl`이 아니다.
+
+## AI 보조 기능 규칙 (임의로 바꾸지 말 것)
+장비 등록 초안(`equipment-draft.ts`)/상태비교(`condition-analysis.ts`)/신고 분석
+(`report-analysis.ts`) 셋 다 **동기 응답이 아니라 비동기 작업(job) + polling**이다 —
+`status: PENDING|PROCESSING|SUCCEEDED|FAILED|SUBMISSION_UNKNOWN`(상태비교/신고분석은
+`NOT_REQUESTED`도 있음). `SUBMISSION_UNKNOWN`은 "POST는 갔는데 응답을 못 받은 상태"를 뜻하며,
+같은 작업을 새로 만들지 않고 반드시 `retry*` 함수로 **같은 job에 재접수**한다(그렇지 않으면
+과금되는 AI 호출이 중복 발생) — 실패 시에도 자동으로 새 job을 만들지 않는다. 폴링은 2000ms
+간격, 최대 30회, 90초 경과 중 먼저 오는 조건에서 멈춘다(`shouldPollConditionAnalysis`/
+`shouldPollReportAnalysis`가 그 판단 로직, 개별 HTTP 요청은 별도로 15초 타임아웃). AI 결과는
+항상 참고용 — 자동으로 상태를 바꾸거나 신고를 접수하지 않고, 사용자가 확인/수정 후 기존
+액션(반납 확인의 신고 접수, 장비 등록 폼 적용)을 그대로 거치게 한다.
 
 ## 관리자 상태 전이 규칙 (임의로 바꾸지 말 것)
 관리자 상태 변경 API들은 겉보기와 달리 허용되는 전이가 좁게 제한되어 있다 — UI는 항상 "현재

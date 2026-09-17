@@ -1,4 +1,4 @@
-import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
 import { cn } from "@/lib/cn";
 
 interface PhotoUploadSlotProps {
@@ -18,7 +18,16 @@ export function PhotoUploadSlot({
   className,
 }: PhotoUploadSlotProps) {
   if (src) {
-    return <ImagePlaceholder rounded="rounded-sm" src={src} className={className} />;
+    return <div>
+      <ZoomableImage src={src} alt="등록한 사진" className={className} />
+      {onClick && <button
+        type="button"
+        className="mt-1 text-[11px] font-semibold text-text-secondary"
+        onClick={onClick}
+      >
+        사진 변경
+      </button>}
+    </div>;
   }
   if (filled || loading) {
     return (

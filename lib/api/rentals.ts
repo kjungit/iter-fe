@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
-import type { ProductCondition } from "@/lib/api/equipment";
+import type { CaptureView, ProductCondition } from "@/lib/api/equipment";
 
 /** BE reservation/domain/entity/RentalStatus와 동일 (한글 라벨은 lib/status.ts에서만 매핑). */
 export type RentalStatus =
@@ -92,7 +92,7 @@ export interface ReturnTarget {
 export interface ConditionEvidence {
   productCondition: ProductCondition;
   conditionDetail: string | null;
-  imageUrls: string[];
+  images: Array<{ captureView: CaptureView | null; imageUrl: string }>;
   recordedAt: string;
 }
 
@@ -103,6 +103,7 @@ export interface ReturnComparison {
   startDate: string;
   endDate: string;
   returnDate: string;
+  listingImages: Array<{ captureView: CaptureView | null; imageUrl: string }>;
   receipt: ConditionEvidence;
   returnReceipt: ConditionEvidence;
 }
@@ -290,7 +291,7 @@ export async function registerShipping(rentalId: string, input: ShippingRegister
 export interface ReceiptCreateInput {
   productCondition: ProductCondition;
   conditionDetail?: string;
-  imageUrls: string[];
+  images: Array<{ captureView: CaptureView; objectKey: string }>;
 }
 
 export async function createReceipt(rentalId: string, input: ReceiptCreateInput): Promise<void> {
@@ -304,7 +305,7 @@ export async function requestReturn(rentalId: string): Promise<void> {
 export interface ReturnEvidenceCreateInput {
   productCondition: ProductCondition;
   conditionDetail?: string;
-  imageUrls: string[];
+  images: Array<{ captureView: CaptureView; objectKey: string }>;
 }
 
 export async function createReturnEvidence(
@@ -360,6 +361,7 @@ export async function fetchReturnComparison(rentalId: string): Promise<ReturnCom
     startDate: string;
     endDate: string;
     returnDate: string;
+    listingImages: Array<{ captureView: CaptureView | null; imageUrl: string }>;
     receipt: ConditionEvidence;
     returnReceipt: ConditionEvidence;
   }>(`/api/v1/rentals/${rentalId}/return-comparison`);
@@ -375,30 +377,36 @@ export interface ReturnConfirmationInput {
 export async function confirmReturn(
   rentalId: string,
   input: ReturnConfirmationInput,
-): Promise<{ status: RentalStatus; disputeId: string | null }> {
-  const dto = await apiFetch<{ status: RentalStatus; disputeId: number | null }>(
+): Promise<{ status: RentalStatus; disputeId: string | null; reportId: string | null }> {
+  const dto = await apiFetch<{ status: RentalStatus; disputeId: number | null; reportId: number | null }>(
     `/api/v1/rentals/${rentalId}/return-confirmation`,
     { method: "POST", body: input },
   );
-  return { status: dto.status, disputeId: dto.disputeId ? String(dto.disputeId) : null };
+  return {
+    status: dto.status,
+    disputeId: dto.disputeId ? String(dto.disputeId) : null,
+    reportId: dto.reportId ? String(dto.reportId) : null,
+  };
 }
 
 // ── 수령/반납 증빙 사진 업로드 (presigned URL) ──────────────────────────────
-// 장비 이미지와 달리 승격(promote) 단계가 없어 발급 즉시 publicUrl이 최종 URL이다.
+// 최종 제출에는 비공개 objectKey를 보내고, viewUrl은 업로드 직후 미리보기에만 사용한다.
 
 export interface EvidencePresignedUpload {
+  captureView: CaptureView;
   objectKey: string;
   uploadUrl: string;
   requiredHeaders: Record<string, string>;
-  publicUrl: string;
+  viewUrl: string;
   expiresAt: string;
 }
 
 export async function requestEvidenceImagePresignedUrls(
-  files: { contentType: string }[],
+  rentalId: string,
+  files: { captureView: CaptureView; contentType: string; size: number }[],
 ): Promise<EvidencePresignedUpload[]> {
   const dto = await apiFetch<{ uploads: EvidencePresignedUpload[] }>(
-    "/api/v1/rentals/images/presigned-urls",
+    `/api/v1/rentals/${rentalId}/images/presigned-urls`,
     { method: "POST", body: { files } },
   );
   return dto.uploads;

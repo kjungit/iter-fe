@@ -4,6 +4,7 @@ export { Chip } from "@/components/ui/Chip";
 export { ConfirmModal } from "@/components/ui/ConfirmModal";
 export { DropdownMenu, DropdownMenuItem } from "@/components/ui/DropdownMenu";
 export { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
+export { ZoomableImage } from "@/components/ui/ZoomableImage";
 export { Input } from "@/components/ui/Input";
 export { PhotoUploadSlot, PhotoUploadSlotGrid } from "@/components/ui/PhotoUploadSlot";
 export { Select } from "@/components/ui/Select";

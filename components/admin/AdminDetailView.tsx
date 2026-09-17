@@ -33,6 +33,7 @@ import {
 } from "@/lib/status";
 import { ApiError } from "@/lib/api/client";
 import { useConfirm } from "@/lib/store/confirm-modal-context";
+import { ReportAnalysisPanel } from "@/components/admin/ReportAnalysisPanel";
 
 const ENTITY_LABEL: Record<Exclude<AdminTabKey, "history">, string> = {
   users: "회원",
@@ -66,10 +67,10 @@ function DetailShell({ entity, title, subtitle, badge, children, statusPanel }: 
         <div className="mt-1 text-[12.5px] text-text-secondary">{subtitle}</div>
       </div>
 
-      <div className={statusPanel ? "grid grid-cols-[1.2fr_0.8fr] items-start gap-5" : ""}>
+      <div className={statusPanel ? "grid items-start gap-5 lg:grid-cols-[1.2fr_0.8fr]" : ""}>
         <div className="flex flex-col gap-5">{children}</div>
         {statusPanel && (
-          <div className="sticky top-[84px] rounded-lg border border-border p-5">{statusPanel}</div>
+          <div className="rounded-lg border border-border p-5 lg:sticky lg:top-[84px]">{statusPanel}</div>
         )}
       </div>
     </div>
@@ -530,6 +531,7 @@ function allowedReportTransitions(status: ReportStatus): ReportStatus[] {
   }
 }
 
+// 신고 원본과 AI 참고 자료를 함께 보여주되 상태 변경은 기존 관리자 동작으로 분리한다.
 function AdminReportDetail({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -599,6 +601,38 @@ function AdminReportDetail({ id }: { id: string }) {
         <p className="text-[13px] leading-[1.6] text-text-body-1">{report.description}</p>
       </div>
 
+      {report.evidenceGroups.length > 0 && (
+        <div className="rounded-lg border border-border p-5">
+          <h2 className="mb-1 text-[13px] font-bold text-ink">관련 사진</h2>
+          <p className="mb-4 text-[12px] text-text-secondary">
+            장비 등록 및 거래 과정에 저장된 사진입니다. 사진을 누르면 원본 크기로 확인할 수 있습니다.
+          </p>
+          <div className="flex flex-col gap-4">
+            {report.evidenceGroups.map((group) => (
+              <div key={group.phase}>
+                <h3 className="mb-2 text-[12.5px] font-semibold text-text-body-1">{group.label}</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {group.images.slice(0, 8).map((image, index) => (
+                    <a key={`${group.phase}-${image.captureView ?? index}`} href={image.imageUrl}
+                      target="_blank" rel="noreferrer"
+                      aria-label={`${group.label} ${image.captureView ?? index + 1} 원본 보기`}>
+                      <p className="mb-1 text-center text-xs font-semibold">
+                        {image.captureView === "FRONT" ? "정면" : image.captureView === "SIDE" ? "측면"
+                          : image.captureView === "REAR" ? "후면" : `기존 사진 ${index + 1}`}
+                      </p>
+                      <ImagePlaceholder size="sm" rounded="rounded-sm" src={image.imageUrl} />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <ReportAnalysisPanel key={report.reportId} reportId={report.reportId}
+        description={`${report.reason}\n${report.description ?? ""}`}
+        closed={report.status === "RESOLVED" || report.status === "REJECTED"} />
       {report.targetType === "USER" && <ReportTargetUserCard userId={report.targetId} />}
       {report.targetType === "EQUIPMENT" && <ReportTargetEquipmentCard equipmentId={report.targetId} />}
       {report.targetType === "RENTAL" && <ReportTargetRentalCard rentalId={report.targetId} />}

@@ -88,6 +88,7 @@ export interface EquipmentSummary {
 export interface EquipmentImage {
   id: string;
   imageUrl: string;
+  captureView: CaptureView | null;
   sortOrder: number;
   thumbnail: boolean;
 }
@@ -155,7 +156,7 @@ interface EquipmentDetailDto extends Omit<EquipmentSummaryDto, "thumbnailUrl"> {
   description: string;
   status: EquipmentStatus;
   conditionDetail: string | null;
-  images: { id: number; imageUrl: string; sortOrder: number; thumbnail: boolean }[];
+  images: { id: number; imageUrl: string; captureView: CaptureView | null; sortOrder: number; thumbnail: boolean }[];
   owner: { id: number; nickname: string };
   createdAt: string;
 }
@@ -249,19 +250,25 @@ export async function fetchEquipmentEstimate(
 // 순서: 1) presigned URL 발급  2) 반환받은 uploadUrl로 S3에 직접 PUT
 // 3) objectKey들을 장비 등록 요청에 imageKeys로 전달 (imageUrl 문자열이 아니라 objectKey!)
 
+export const CAPTURE_VIEWS = ["FRONT", "SIDE", "REAR"] as const;
+export type CaptureView = (typeof CAPTURE_VIEWS)[number];
+
 export interface PresignedImageUpload {
+  captureView: CaptureView;
   objectKey: string;
   uploadUrl: string;
   requiredHeaders: Record<string, string>;
   expiresAt: string;
 }
 
+// 업로드할 파일 정보만 Core에 보내고 제한 시간 안에 S3 직접 업로드 정보를 받는다.
 export async function requestEquipmentImagePresignedUrls(
-  files: { fileName: string; contentType: string; size: number }[],
+  files: { captureView: CaptureView; fileName: string; contentType: string; size: number }[],
+  signal?: AbortSignal,
 ): Promise<PresignedImageUpload[]> {
   const dto = await apiFetch<{ uploads: PresignedImageUpload[] }>(
     "/api/v1/devices/images/presigned-urls",
-    { method: "POST", body: { files } },
+    { method: "POST", body: { files }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000) },
   );
   return dto.uploads;
 }
@@ -275,9 +282,8 @@ export interface EquipmentCreateInput {
   availableTo: string;
   productCondition: ProductCondition;
   conditionDetail?: string;
-  /** presigned URL 업로드로 받은 objectKey 목록 (imageUrl이 아님) */
-  imageKeys: string[];
-  thumbnailIndex: number;
+  /** 촬영 방향과 presigned URL 업로드로 받은 objectKey를 함께 전달한다. */
+  images: Array<{ captureView: CaptureView; objectKey: string }>;
 }
 
 export async function createEquipment(input: EquipmentCreateInput): Promise<EquipmentDetail> {

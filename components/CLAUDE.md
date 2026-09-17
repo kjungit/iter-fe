@@ -18,8 +18,18 @@ components/
 `Chip`(카테고리/필터 공용, selected 상태), `Tabs`, `Input`, `Textarea`, `Select`,
 `ConfirmModal`(useConfirm 훅과 함께 루트에 1개만 마운트), `Table`(헤더/행 스펙 공용),
 `Timeline`(가로형: 대여 상세용 / 세로형: 신고 상세·관리자 처리이력용, variant prop으로 분기),
-`PhotoUploadSlot`(점선 보더, 4슬롯 그리드로 조합), `ImagePlaceholder`(스트라이프 패턴),
-`StarRating`, `StatCard`.
+`PhotoUploadSlot`(점선 보더, CAPTURE_VIEW 3슬롯 그리드로 조합), `ImagePlaceholder`(스트라이프
+패턴), `ZoomableImage`(`ImagePlaceholder` 래핑 — 클릭하면 원본 크기로 확대, 사진 슬롯/증빙
+비교/신고 첨부 사진 어디서든 이거로 통일), `StarRating`, `StatCard`.
+
+## AI 보조 패널 (equipment/rentals/admin, 임의로 새 위치에 옮기지 말 것)
+- `equipment/EquipmentDraftPanel.tsx`: `EquipmentRegisterForm`에 마운트. 사진 3장 준비 →
+  AI 초안 생성 → "초안 적용" 버튼으로 폼 필드만 patch.
+- `rentals/ConditionAnalysisPanel.tsx`: `rentals/ActionPanel/OwnerReturnConfirmPanel.tsx`에
+  마운트. 수령·반납 사진 비교 결과를 보여주고, "신고 내용에 반영" 버튼으로 기존 신고
+  폼(`disputeReason`/`disputeDescription`)을 채워준다 — 자체적으로 신고를 접수하지 않는다.
+- `admin/ReportAnalysisPanel.tsx`: `AdminDetailView.tsx`의 `AdminReportDetail`에 마운트.
+  상세 규칙은 `lib/CLAUDE.md`의 "AI 보조 기능 규칙" 참고.
 
 ## 컨벤션
 - 모든 색상·spacing·radius·font-size는 Tailwind 유틸/`@theme` 토큰 사용, 인라인 style이나
