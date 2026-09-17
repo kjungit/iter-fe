@@ -28,8 +28,13 @@ lib/
     admin.ts          /api/v1/admin/** 전체(회원/장비/신고/결제/처리이력)
     notifications.ts  /api/v1/notifications 전체 + SSE 티켓 발급
     s3-upload.ts      presigned URL로 S3 직접 PUT
+    chat.ts           apps:chat(모노레포 전환 후 신규 서비스, 포트 8081) 연동 — 문의 그랜트/
+                      티켓 발급(monolith)부터 방 목록·메시지·읽음 처리(chat 서비스)까지. 상세
+                      규칙은 아래 "채팅(Chat) 연동 규칙" 참고.
   hooks/
     useNotificationStream.ts  SSE 구독 훅(티켓 재발급 기반 수동 재연결)
+    useChatSocket.ts          채팅방 WebSocket 구독 훅(티켓 기반 수동 재연결, useNotificationStream과
+                              동일한 패턴)
   auth/
     use-require-auth.ts  로그인 필요 화면에서 호출하는 가드 훅 (미인증 시 /login 리다이렉트)
   store/
@@ -85,6 +90,27 @@ RECEIVED, RENTING, RETURN_REQUESTED, RETURNING, RETURNED, DISPUTED, COMPLETED`. 
   가능한 범용 엔드포인트 — 다른 사용자 표시 지점과 "내 프로필" 모두 `UserRatingBadge` 하나로
   재사용한다. 장비(Equipment) 자체의 `averageRating`/`reviewCount`는 별개 필드이며 BE에서
   항상 `0.0, 0`으로 하드코딩되어 있으니 섞어 쓰지 않는다.
+
+## 채팅(Chat) 연동 규칙 (임의로 바꾸지 말 것)
+채팅은 monolith(`iter-be`, 포트 8080)와 완전히 분리된 별도 서비스(`apps:chat`, 포트 8081,
+`NEXT_PUBLIC_CHAT_API_BASE_URL`)다 — 인증도 JWT가 아니라 monolith가 발급하는 **티켓**을 쓴다.
+- 티켓 발급(`POST /api/v1/chat/tickets`)과 문의 그랜트 발급(`POST /api/v1/chat/inquiry-grants`)은
+  monolith 엔드포인트라 `apiFetch`(JWT)로 호출한다. 그 이후 방 목록/메시지/읽음 처리는 전부
+  `lib/api/chat.ts`의 `chatFetch`(티켓 Bearer, refresh/CSRF 없음)로 chat 서비스에 직접 호출한다.
+- 티켓은 10분 TTL이지만 **재사용 가능**(SSE 티켓과 달리 1회용 아님) — `getChatTicket()`이 모듈
+  스코프에 캐시해 두고 만료 임박/401 때만 재발급한다. 화면에서 직접 티켓을 다루지 않는다.
+- 채팅방은 대여(rental)가 아니라 **장비+문의자** 단위로 생성된다(`stage: INQUIRY`, `rentalId`
+  없음). 결제가 확정되면 BE가 같은 방을 찾아 `TRADE`로 전환하고 `rentalId`를 채운다 — 결제 전에
+  문의 채팅이 없었다면 결제 후에도 방이 새로 생기지 않는다(BE의 알려진 제약, 프론트에서 보완
+  하지 않는다).
+- 메시지는 텍스트 전용이다(첨부/이미지 없음). `masked: true`인 메시지는 BE가 전화번호/계좌/외부
+  링크 등을 이미 가려서 저장한 것 — 원문은 애초에 저장되지 않으므로 프론트가 마스킹을 풀거나
+  재현하려고 하지 않는다.
+- 실시간 송수신은 REST가 아니라 `lib/hooks/useChatSocket.ts`의 순수 WebSocket(`/ws/chat`)이다.
+  서버가 보내는 `type: "ERROR", code: "MUTED"` 프레임은 24시간 뮤트(30일 내 마스킹 위반 3회)
+  상태라는 뜻 — 재시도 로직을 넣지 않고 컴포저를 비활성화한 채 안내만 한다.
+- 방 목록의 `unreadCount`는 폴링으로만 갱신된다(채팅 전용 SSE/전역 푸시 없음) — 알림
+  (`NotificationBell`)과 동일하게 `refetchInterval`로 처리한다.
 
 ## 관리자 상태 전이 규칙 (임의로 바꾸지 말 것)
 관리자 상태 변경 API들은 겉보기와 달리 허용되는 전이가 좁게 제한되어 있다 — UI는 항상 "현재
