@@ -57,7 +57,7 @@ export function ChatRoomView({ roomId }: ChatRoomViewProps) {
     enabled: !!currentUser,
   });
 
-  const { send } = useChatSocket(currentUser ? roomId : null, {
+  const { send, isConnected } = useChatSocket(currentUser ? roomId : null, {
     onMessage: (message) => {
       queryClient.setQueryData<InfiniteData<ChatMessagePage>>(["chat", "messages", roomId], (old) => {
         if (!old) return old;
@@ -91,7 +91,7 @@ export function ChatRoomView({ roomId }: ChatRoomViewProps) {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-[720px] px-6 py-16 text-center text-[13px] text-text-secondary">
+      <div className="mx-auto flex h-[calc(100%-2rem)] w-full max-w-[760px] my-4 items-center justify-center rounded-2xl border border-border bg-bg text-[13px] text-text-secondary shadow-popover">
         불러오는 중...
       </div>
     );
@@ -99,7 +99,7 @@ export function ChatRoomView({ roomId }: ChatRoomViewProps) {
 
   if (isError) {
     return (
-      <div className="mx-auto max-w-[720px] px-6 py-16 text-center text-[13px] text-text-secondary">
+      <div className="mx-auto flex h-[calc(100%-2rem)] w-full max-w-[760px] my-4 items-center justify-center rounded-2xl border border-border bg-bg text-[13px] text-text-secondary shadow-popover">
         채팅방을 불러올 수 없습니다.{" "}
         <Link href="/chat" className="font-semibold text-ink-strong">
           채팅목록으로
@@ -113,19 +113,24 @@ export function ChatRoomView({ roomId }: ChatRoomViewProps) {
   const disabledReason = closed ? "종료된 채팅방이에요." : (muteMessage ?? undefined);
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-64px)] max-w-[720px] flex-col px-6 py-6">
-      <div className="border-b border-border pb-4">
-        <Link href="/chat" className="text-[13px] font-semibold text-text-secondary">
-          ← 채팅목록
-        </Link>
-        <div className="mt-2 flex items-center gap-2">
-          <h1 className="text-[16px] font-bold text-ink">{room?.equipmentName ?? "채팅"}</h1>
-          {room && <Badge {...chatRoomStageBadge(room.stage)} />}
+    <div className="mx-auto flex h-[calc(100%-2rem)] w-full max-w-[760px] flex-col my-4 rounded-2xl border border-border bg-bg px-6 py-5 shadow-popover">
+      <div className="flex items-center gap-3 border-b border-border pb-4">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-badge-progress-bg text-[12.5px] font-bold text-badge-progress-fg">
+          {room?.counterpartNickname.slice(0, 1) ?? "?"}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h1 className="truncate text-[15px] font-bold text-ink">{room?.equipmentName ?? "채팅"}</h1>
+            {room && <Badge {...chatRoomStageBadge(room.stage)} />}
+          </div>
+          {room && (
+            <p className="mt-0.5 truncate text-[12px] text-text-secondary">
+              {room.counterpartNickname}님과의 대화
+            </p>
+          )}
         </div>
-        {room && (
-          <p className="mt-1 text-[12.5px] text-text-secondary">
-            {room.counterpartNickname}님과의 대화
-          </p>
+        {!isConnected && !closed && (
+          <span className="shrink-0 text-[11px] text-text-tertiary">연결 중...</span>
         )}
       </div>
 

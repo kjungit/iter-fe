@@ -21,8 +21,8 @@ export function ChatMessageBubble({ message, isOwn }: ChatMessageBubbleProps) {
       )}
       <div
         className={cn(
-          "max-w-[60%] rounded-lg px-3.5 py-2.5 text-[13.5px] leading-[1.5]",
-          isOwn ? "bg-ink-strong text-white" : "bg-surface text-ink",
+          "max-w-[60%] rounded-2xl px-4 py-2.5 text-[13.5px] leading-[1.5]",
+          isOwn ? "rounded-tr-sm bg-ink-strong text-white" : "rounded-tl-sm bg-surface text-ink",
         )}
       >
         {message.content}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CHAT_API_BASE_URL, getChatTicket, type ChatMessage, type ChatMessageType } from "@/lib/api/chat";
 
 interface IncomingFrame {
@@ -47,10 +47,11 @@ function toChatMessage(frame: OutgoingFrame): ChatMessage {
 export function useChatSocket(
   roomId: string | null,
   options: UseChatSocketOptions,
-): { send: (content: string) => void } {
+): { send: (content: string) => boolean; isConnected: boolean } {
   const socketRef = useRef<WebSocket | null>(null);
   const cancelledRef = useRef(false);
   const handlersRef = useRef(options);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     handlersRef.current = options;
@@ -72,6 +73,9 @@ export function useChatSocket(
         );
         socketRef.current = socket;
 
+        socket.onopen = () => {
+          if (socketRef.current === socket) setIsConnected(true);
+        };
         socket.onmessage = (event) => {
           const frame = JSON.parse(event.data) as OutgoingFrame;
           if (frame.type === "ERROR") {
@@ -81,7 +85,10 @@ export function useChatSocket(
           handlersRef.current.onMessage?.(toChatMessage(frame));
         };
         socket.onclose = () => {
-          if (socketRef.current === socket) socketRef.current = null;
+          if (socketRef.current === socket) {
+            socketRef.current = null;
+            setIsConnected(false);
+          }
           if (!cancelledRef.current) retryTimer = setTimeout(connect, 3000);
         };
         socket.onerror = () => socket.close();
@@ -97,16 +104,20 @@ export function useChatSocket(
       if (retryTimer) clearTimeout(retryTimer);
       socketRef.current?.close();
       socketRef.current = null;
+      setIsConnected(false);
     };
   }, [roomId]);
 
-  const send = useCallback((content: string) => {
+  /** 소켓이 OPEN이 아니면 프레임을 보내지 않고 false를 반환 — 호출부가 입력값을 지우지 않고 재시도할 수 있게 한다. */
+  const send = useCallback((content: string): boolean => {
     const socket = socketRef.current;
     if (socket && socket.readyState === WebSocket.OPEN) {
       const frame: IncomingFrame = { type: "SEND", content };
       socket.send(JSON.stringify(frame));
+      return true;
     }
+    return false;
   }, []);
 
-  return { send };
+  return { send, isConnected };
 }
